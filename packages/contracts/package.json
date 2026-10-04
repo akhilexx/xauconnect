@@ -17,7 +17,7 @@
     "deploy:avalanche": "hardhat run scripts/deploy.ts --network avalanche",
     "upgrade:fee-collector:polygon": "hardhat run scripts/upgrade-fee-collector.ts --network polygon",
     "node": "hardhat node",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "hardhat compile && tsc --noEmit"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.2.0",

@@ -2,7 +2,7 @@
   "name": "xauconnect",
   "version": "0.1.0",
   "private": true,
-  "description": "XAUConnect — The Most Liquid Gold-Standard DEX Aggregator & Meme Launch Platform",
+  "description": "XAUConnect Gold Curve, a Meteora Dynamic Bonding Curve launchpad",
   "license": "MIT",
   "packageManager": "pnpm@10.26.0",
   "engines": {
