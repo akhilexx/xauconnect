@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Builds
+.next/
+dist/
+build/
+out/
+.turbo/
+.expo/
+
+# Contracts
+packages/contracts/artifacts/
+packages/contracts/cache/
+packages/contracts/typechain-types/
+packages/contracts/coverage/
+packages/contracts/deployments/localhost/
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+apps/web/.env.production
+.local/
+
+# Local ops notes. Kept on this machine, never published.
+PROJECT_CONTEXT.md
+.cursor/rules/server.mdc
+*.pem
+.azure/credentials.json
+deploy/secrets/
+deploy/.fast-deploy
+
+# Database
+*.sqlite
+*.db
+
+# Logs & misc
+*.log
+.DS_Store
+coverage/
+*.tsbuildinfo
+__pycache__/
+
+# SEO registry (generated locally + shipped via deploy tarball — do not commit)
+packages/seo/registry/*.json
+!packages/seo/registry/.gitkeep
+
+# Higgsfield source dumps (processed outputs live in apps/web/public/brand)
+.cursor/assets/higgsfield-brand/

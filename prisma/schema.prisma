@@ -1,0 +1,472 @@
+// XAUConnect — PostgreSQL schema (Prisma)
+//
+//   pnpm db:generate   regenerate the client
+//   pnpm db:migrate    create/apply a dev migration
+//   pnpm db:push       push schema without migration (prototyping)
+//
+// Amounts are stored as DECIMAL(78,0) strings of base units (uint256-safe).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum KycStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ListingStatus {
+  UNLISTED
+  PENDING // listing fee paid, awaiting admin approval
+  APPROVED
+  REJECTED
+}
+
+enum LaunchType {
+  STANDARD
+  BONDING_CURVE
+}
+
+enum LaunchStatus {
+  PENDING
+  DEPLOYED
+  GRADUATED
+  FAILED
+}
+
+enum AuditBadge {
+  NONE
+  PENDING
+  VERIFIED
+}
+
+model User {
+  id         String    @id @default(cuid())
+  /// Wallet address (EVM checksummed or Solana base58)
+  address    String    @unique
+  chainKind  String    @default("evm")
+  role       Role      @default(USER)
+  /// KYC placeholder — wire a provider (Sumsub/Persona) later
+  kycStatus  KycStatus @default(NONE)
+  kycFlaggedReason String?
+
+  /// Social profile (optional, user-managed)
+  displayName String?
+  twitter     String?
+  telegram    String?
+  discord     String?
+  website     String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+
+  swaps    Swap[]
+  launches Launch[]
+  auditLogs AuditLog[]
+  connections ConnectedWallet[]
+
+  @@index([role])
+  @@index([lastSeenAt])
+}
+
+/// Every wallet connect through the app (EVM + Solana) — upserted on each session.
+model ConnectedWallet {
+  id                String   @id @default(cuid())
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  address           String
+  chainKind         String   @default("evm")
+  lastChainKey      String?
+  lastChainId       Int?
+  connectorId       String?
+  connectorName     String?
+  walletApp         String?
+  connectMethod     String?
+  userAgent         String?
+  lastIp            String?
+  pagePath          String?
+  referrer          String?
+  portfolioUsd      Float    @default(0)
+  nativeBalance     String?
+  nativeSymbol      String?
+  balancesJson      Json?
+  chainActivityJson Json?
+  connectCount      Int      @default(1)
+  firstConnectedAt  DateTime @default(now())
+  lastConnectedAt   DateTime @default(now())
+
+  @@unique([address, chainKind])
+  @@index([lastConnectedAt])
+  @@index([portfolioUsd])
+}
+
+model Token {
+  id        String   @id @default(cuid())
+  chainKey  String
+  address   String
+  symbol    String
+  name      String
+  decimals  Int      @default(18)
+  logoURI   String?
+  /// ipfs:// metadata for XAU-launched tokens
+  metadataURI String?
+  description String?
+  website   String?
+  twitter   String?
+  telegram  String?
+  /// Launched through the XAUConnect launchpad
+  xauLaunch Boolean  @default(false)
+  auditBadge AuditBadge @default(NONE)
+  listingStatus ListingStatus @default(UNLISTED)
+  listingFeePaidTx String?
+  /// Creator wallet for dev-wallet tracking
+  creatorAddress String?
+  createdAt DateTime @default(now())
+
+  launch Launch?
+  swaps  Swap[]
+
+  @@unique([chainKey, address])
+  @@index([listingStatus])
+  @@index([xauLaunch, createdAt])
+}
+
+model Launch {
+  id          String       @id @default(cuid())
+  tokenId     String       @unique
+  token       Token        @relation(fields: [tokenId], references: [id])
+  creatorId   String
+  creator     User         @relation(fields: [creatorId], references: [id])
+  launchType  LaunchType
+  status      LaunchStatus @default(PENDING)
+  /// Total supply in base units (uint256 string)
+  totalSupply Decimal      @db.Decimal(78, 0)
+  /// Fees paid (native base units)
+  launchFeePaid Decimal    @db.Decimal(78, 0) @default(0)
+  feeCurrency String       @default("native")
+  deployTxHash String?
+  /// Meteora DBC virtual pool, partner config, quote mint, and Gold Curve preset.
+  poolAddress String?
+  configAddress String?
+  quoteMint String?
+  curvePreset String?
+  /// Bonding curve state mirror (synced from chain events)
+  curveNativeRaised Decimal @db.Decimal(78, 0) @default(0)
+  graduatedAt DateTime?
+  /// Optional LP lock
+  lpLocked    Boolean      @default(false)
+  lockDurationDays Int     @default(0)
+  createdAt   DateTime     @default(now())
+
+  @@index([status, createdAt])
+}
+
+model Swap {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  tokenId     String?
+  token       Token?   @relation(fields: [tokenId], references: [id])
+  chainKey    String
+  dexId       String
+  tokenIn     String
+  tokenOut    String
+  amountIn    Decimal  @db.Decimal(78, 0)
+  amountOut   Decimal  @db.Decimal(78, 0)
+  /// Protocol fee captured (in tokenIn base units)
+  protocolFee Decimal  @db.Decimal(78, 0)
+  feeBps      Int
+  volumeUsd   Float    @default(0)
+  feeUsd      Float    @default(0)
+  txHash      String?
+  /// Wallet that signed the swap (preserves Solana base58 casing)
+  takerAddress String?
+  failureReason String?
+  status      String   @default("quoted") // quoted | submitted | confirmed | failed
+  /// web | api | agent — who initiated the swap
+  clientSource  String?
+  clientId      String?
+  clientName    String?
+  requestId     String?
+  createdAt   DateTime @default(now())
+
+  @@index([chainKey, createdAt])
+  @@index([userId, createdAt])
+  @@index([clientSource, createdAt])
+}
+
+model ApiClient {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  apiKeyHash   String?  @unique
+  contactEmail String?
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([name])
+}
+
+model ApiRequestLog {
+  id           String   @id @default(cuid())
+  /// Freeform agent id from X-Client-Id header, or registered ApiClient.id
+  clientId     String?
+  endpoint     String
+  method       String
+  chainKey     String?
+  takerAddress String?
+  clientSource String   @default("api")
+  clientName   String?
+  clientIp     String?
+  userAgent    String?
+  statusCode   Int
+  requestId    String?
+  createdAt    DateTime @default(now())
+
+  @@index([clientId, createdAt])
+  @@index([endpoint, createdAt])
+  @@index([takerAddress, createdAt])
+  @@index([requestId])
+}
+
+/// Protocol treasury / fee-collector wallets registered by admins
+model AdminWallet {
+  id        String   @id @default(cuid())
+  chainKey  String
+  address   String
+  label     String?
+  /// treasury | fee_collector | operations
+  purpose   String   @default("treasury")
+  /// Stable id grouping keys across chains (e.g. evm-treasury, sol-fee_collector)
+  keyRef    String?
+  /// BIP44 or SLIP-0010 path used at generation time (public metadata only)
+  derivationPath String?
+  /// evm | solana — same address may appear on multiple EVM chain rows
+  walletGroup String?
+  notes     String?
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@unique([chainKey, address])
+  @@index([purpose])
+  @@index([keyRef])
+}
+
+/// Per-chain fee configuration (admin dashboard hot-config; mirrors FeeCollector)
+model FeeConfig {
+  id           String  @id @default(cuid())
+  chainKey     String  @unique
+  swapFeeBps   Int     @default(30)
+  /// Default slippage tolerance shown in swap UI (bps)
+  defaultSlippageBps Int @default(50)
+  lpFeeBps     Int     @default(10)
+  /// Fiat on-ramp/off-ramp partner fee (our markup) in bps — defaults to swap fee
+  /// (3% EVM / 5% Solana). Sent to the ramp aggregator as the partner markup.
+  onrampFeeBps Int     @default(300)
+  /// Launch fee in native base units
+  launchFeeNative Decimal @db.Decimal(78, 0) @default(10000000000000000)
+  listingFeeUsd Float  @default(99)
+  enabled      Boolean @default(true)
+  updatedAt    DateTime @updatedAt
+}
+
+/// Fiat on-ramp / off-ramp (Buy & Sell crypto) transaction record.
+///
+/// XAUConnect never custodies fiat or crypto for these — a licensed aggregator
+/// (Onramper → MoonPay / Transak / Banxa / Stripe / Guardarian) performs card
+/// authorization, KYC and settlement. We persist the lifecycle for analytics,
+/// support, and partner-fee reconciliation. Rows are created at checkout and
+/// updated by provider webhooks.
+model FiatTransaction {
+  id              String   @id @default(cuid())
+  /// Onramper transaction id (authoritative external id)
+  providerTxId    String?  @unique
+  /// Our session correlation id (sent as partnerContext)
+  partnerContext  String?  @unique
+  /// "buy" | "sell"
+  type            String   @default("buy")
+  /// Ramp provider chosen for the route (e.g. "moonpay")
+  provider        String?
+  status          String   @default("created") // created | pending | paid | completed | failed | expired
+  fiatCurrency    String
+  /// Fiat the user pays (buy) or receives (sell)
+  fiatAmount      Float    @default(0)
+  /// Onramper crypto id (e.g. "eth")
+  cryptoAsset     String
+  /// Mapped XAUConnect chain key when known
+  chainKey        String?
+  /// Crypto the user receives (buy) or sells (sell)
+  cryptoAmount    Float    @default(0)
+  paymentMethod   String?
+  /// Country the transaction was initiated from (ISO-2)
+  country         String?
+  walletAddress   String?
+  /// Our partner markup captured, denominated in fiat
+  partnerFeeFiat  Float    @default(0)
+  partnerFeePct   Float    @default(0)
+  txHash          String?
+  clientSource    String?  @default("web")
+  clientIp        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+  @@index([walletAddress, createdAt])
+}
+
+/// Daily per-chain aggregates powering admin charts
+model ChainStat {
+  id        String   @id @default(cuid())
+  chainKey  String
+  date      DateTime @db.Date
+  volumeUsd Float    @default(0)
+  feesUsd   Float    @default(0)
+  swapCount Int      @default(0)
+  activeUsers Int    @default(0)
+  tvlUsd    Float    @default(0)
+
+  @@unique([chainKey, date])
+}
+
+/// Security & compliance trail — every admin action lands here
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  action    String
+  resource  String?
+  detail    Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([action, createdAt])
+}
+
+/// On-chain liquidity pool tracked by our indexer
+model IndexedPool {
+  id               String   @id @default(cuid())
+  chainKey         String
+  dexKey           String
+  poolAddress      String
+  token0Address    String
+  token1Address    String
+  token0Symbol     String?
+  token1Symbol     String?
+  /// Which side is the tracked "base" token for price
+  baseTokenAddress String
+  /// Launch creator / fee payer when known
+  creatorAddress   String?
+  createdBlock     BigInt   @default(0)
+  createdAt        DateTime @default(now())
+  lastSeenBlock    BigInt   @default(0)
+  isActive         Boolean  @default(true)
+
+  snapshots PoolSnapshot[]
+  swaps     SwapEvent[]
+
+  @@unique([chainKey, poolAddress])
+  @@index([chainKey, baseTokenAddress])
+  @@index([createdAt])
+}
+
+/// Point-in-time pool state (Phase 2 price source)
+model PoolSnapshot {
+  id           String      @id @default(cuid())
+  poolId       String
+  pool         IndexedPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  blockNumber  BigInt
+  reserve0     Decimal     @db.Decimal(78, 0)
+  reserve1     Decimal     @db.Decimal(78, 0)
+  priceUsd     Float
+  liquidityUsd Float
+  capturedAt   DateTime    @default(now())
+
+  @@index([poolId, capturedAt])
+}
+
+/// Per-chain indexer cursor (resume after restart)
+model IndexerCursor {
+  id        String   @id @default(cuid())
+  chainKey  String
+  stream    String
+  dexKey    String?
+  lastBlock BigInt
+  updatedAt DateTime @updatedAt
+
+  @@unique([chainKey, stream, dexKey])
+}
+
+/// Raw swap from chain logs (Phase 4)
+model SwapEvent {
+  id          String      @id @default(cuid())
+  poolId      String
+  pool        IndexedPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  txHash      String
+  logIndex    Int
+  blockNumber BigInt
+  blockTime   DateTime
+  /// Swap initiator (EVM Swap event sender)
+  sender      String?
+  amount0In   Decimal     @default(0) @db.Decimal(78, 0)
+  amount1In   Decimal     @default(0) @db.Decimal(78, 0)
+  amount0Out  Decimal     @default(0) @db.Decimal(78, 0)
+  amount1Out  Decimal     @default(0) @db.Decimal(78, 0)
+  baseAmount  Decimal     @db.Decimal(78, 0)
+  priceUsd    Float
+  volumeUsd   Float
+
+  @@unique([txHash, logIndex])
+  @@index([poolId, blockTime])
+}
+
+/// User limit order — monitored server-side until price triggers or expiry.
+model LimitOrder {
+  id           String   @id @default(cuid())
+  chainKey     String
+  userAddress  String
+  tokenIn      String
+  tokenOut     String
+  amountIn     Decimal  @db.Decimal(78, 0)
+  /// Target output per 1 unit of input (USD-normalized price target).
+  targetPrice  Float
+  slippageBps  Int      @default(50)
+  status       String   @default("pending")
+  expiresAt    DateTime?
+  triggeredAt  DateTime?
+  filledTxHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, chainKey])
+  @@index([userAddress, status])
+}
+
+/// Pre-aggregated OHLCV bars (Phase 4)
+model CandleBar {
+  id           String   @id @default(cuid())
+  chainKey     String
+  tokenAddress String
+  poolAddress  String
+  interval     String
+  openTime     DateTime
+  open         Float
+  high         Float
+  low          Float
+  close        Float
+  volumeUsd    Float
+
+  @@unique([chainKey, tokenAddress, interval, openTime])
+  @@index([chainKey, tokenAddress, interval, openTime])
+}

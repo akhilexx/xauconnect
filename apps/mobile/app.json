@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "XAUConnect",
+    "slug": "xauconnect",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "xauconnect",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F8F9FA",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F8F9FA"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.xauconnect.app",
+      "icon": "./assets/icon.png",
+      "infoPlist": {
+        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": false }
+      }
+    },
+    "android": {
+      "package": "com.xauconnect.app",
+      "icon": "./assets/icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F8F9FA"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/icon.png"
+    },
+    "extra": {
+      "apiUrl": "http://localhost:4000"
+    },
+    "description": "XAUConnect — the gold-standard multi-chain DEX & token launch platform. Swap at the best price across 7 networks, discover trending tokens, and track your multi-chain portfolio."
+  }
+}

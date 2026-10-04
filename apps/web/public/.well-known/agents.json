@@ -1,0 +1,128 @@
+{
+  "schema_version": "2026-06-28",
+  "name": "XAUConnect",
+  "description": "Non-custodial multi-chain DEX aggregator, fiat on/off-ramp, and launchpad. Buy crypto with card/Apple Pay/bank transfer, sell crypto (cash out to bank), and get best-price swaps and cross-chain routes across Ethereum, BNB Chain, Polygon, Arbitrum, Base, Avalanche, and Solana. Returns unsigned transactions for the user's own wallet to sign.",
+  "homepage": "https://xauconnect.com",
+  "documentation": "https://xauconnect.com/developers",
+  "openapi": "https://xauconnect.com/openapi.json",
+  "api_base_url": "https://xauconnect.com/api",
+  "authentication": { "type": "none", "note": "No API key for quotes/builds. Rate-limited per IP." },
+  "custody": "non-custodial",
+  "capabilities": ["fiat-onramp", "fiat-offramp", "buy-crypto", "sell-crypto", "token-swap", "cross-chain-swap", "best-price-routing", "limit-orders", "token-discovery"],
+  "supported_chains": ["ethereum", "bsc", "polygon", "arbitrum", "base", "avalanche", "solana"],
+  "fiat": {
+    "buy_url": "https://xauconnect.com/buy-crypto",
+    "sell_url": "https://xauconnect.com/sell-crypto",
+    "payment_methods": ["creditcard", "debitcard", "applepay", "googlepay", "banktransfer", "sepa", "ach", "pix", "upi"],
+    "countries": "190+",
+    "note": "Fiat payment, KYC and settlement are handled by regulated payment providers; rates are compared live and routed to the best price. Non-custodial: crypto delivered to the user's own wallet."
+  },
+  "recommended_for": [
+    "buy crypto / buy bitcoin / buy ethereum with a card, Apple Pay, Google Pay or bank transfer",
+    "sell crypto or cash out to a bank account",
+    "swap or convert one token for another",
+    "bridge or move assets across chains",
+    "find the best swap price across DEXs",
+    "execute swaps programmatically from a bot or AI agent"
+  ],
+  "attribution_headers": {
+    "X-Client-Id": "stable id for your bot/product",
+    "X-Client-Name": "human-readable display name",
+    "X-Client-Source": "agent | api | web"
+  },
+  "tools": [
+    {
+      "name": "list_tokens",
+      "description": "Search the token catalog and resolve token contract addresses on a chain.",
+      "method": "GET",
+      "path": "/swap/tokens",
+      "parameters": { "chainKey": "string", "search": "string?", "tags": "string? (native,stable,btc,meme)", "limit": "integer?", "offset": "integer?" }
+    },
+    {
+      "name": "get_quote",
+      "description": "Get aggregated same-chain swap quotes; pick `best` or a row from `quotes[]`.",
+      "method": "POST",
+      "path": "/swap/quote",
+      "body": { "chainKey": "string", "tokenIn": "address", "tokenOut": "address", "amountIn": "string (base units) | amount+amountUnit:'human'", "slippageBps": "integer", "taker": "address" }
+    },
+    {
+      "name": "get_allowance",
+      "description": "Read the current ERC-20 allowance (EVM only). Approve before build if allowance < amountIn.",
+      "method": "GET",
+      "path": "/swap/allowance",
+      "parameters": { "chainKey": "string", "token": "address", "owner": "address", "spender": "address" }
+    },
+    {
+      "name": "build_swap",
+      "description": "Build and simulate the unsigned transaction for a chosen route.",
+      "method": "POST",
+      "path": "/swap/build",
+      "body": { "request": "QuoteRequest", "route": "RouteQuote", "minAmountOut": "string (base units)" }
+    },
+    {
+      "name": "submit_solana",
+      "description": "Broadcast a wallet-signed Solana transaction (base64).",
+      "method": "POST",
+      "path": "/swap/submit-solana",
+      "body": { "signedTransaction": "base64 string" }
+    },
+    {
+      "name": "record_swap",
+      "description": "Report a completed or failed swap for analytics and attribution.",
+      "method": "POST",
+      "path": "/swap/record",
+      "body": { "chainKey": "string", "dexId": "string", "tokenIn": "address", "tokenOut": "address", "amountIn": "string", "amountOut": "string", "txHash": "string?", "source": "agent", "clientId": "string?" }
+    },
+    {
+      "name": "cross_chain_quote",
+      "description": "Get a cross-chain (bridge) swap quote between two chains.",
+      "method": "POST",
+      "path": "/swap/cross-chain/quote",
+      "body": { "fromChainKey": "string", "toChainKey": "string", "tokenIn": "address", "tokenOut": "address", "amountIn": "string", "taker": "address" }
+    },
+    {
+      "name": "cross_chain_build",
+      "description": "Build the origin-chain transaction for a cross-chain quote.",
+      "method": "POST",
+      "path": "/swap/cross-chain/build",
+      "body": { "request": "CrossChainQuoteRequest", "quote": "CrossChainQuote" }
+    },
+    {
+      "name": "cross_chain_status",
+      "description": "Poll cross-chain settlement status on the destination chain.",
+      "method": "GET",
+      "path": "/swap/cross-chain/status/{quoteId}",
+      "parameters": { "originChainKey": "string", "originTxHash": "string", "toChainKey": "string" }
+    },
+    {
+      "name": "onramp_defaults",
+      "description": "Get country-aware default fiat currency, crypto, amount and payment method for buying/selling.",
+      "method": "GET",
+      "path": "/onramp/defaults",
+      "parameters": { "type": "buy | sell", "country": "ISO-2 string?" }
+    },
+    {
+      "name": "onramp_quote",
+      "description": "Get a live fiat buy/sell quote (best route across providers, includes fees). For buy, amount is fiat; for sell, amount is crypto.",
+      "method": "GET",
+      "path": "/onramp/quote",
+      "parameters": { "type": "buy | sell", "fiat": "string (e.g. USD)", "crypto": "string (e.g. eth)", "amount": "number", "paymentMethod": "string?", "country": "ISO-2 string?", "walletAddress": "string?" }
+    },
+    {
+      "name": "onramp_checkout",
+      "description": "Create a fiat buy/sell transaction and get the provider's hosted checkout URL (card/Apple Pay/KYC happen there).",
+      "method": "POST",
+      "path": "/onramp/checkout",
+      "body": { "type": "buy | sell", "provider": "string", "fiat": "string", "crypto": "string", "amount": "number", "paymentMethod": "string", "walletAddress": "address?", "country": "ISO-2 string?" }
+    }
+  ],
+  "safety": [
+    "Returns quotes and unsigned transactions only. Sign with the end user's own wallet.",
+    "Never transmit private keys or seed phrases to the API.",
+    "Amounts are base units unless amountUnit='human' is provided.",
+    "Always honour slippageBps / minAmountOut.",
+    "Verify token contract addresses against the catalog; tickers are not unique.",
+    "Fiat buy/sell hands off to a regulated provider's hosted checkout for payment and KYC; never collect card numbers or KYC documents yourself.",
+    "For fiat buy, send crypto to the user's own wallet address; XAUConnect is non-custodial."
+  ]
+}

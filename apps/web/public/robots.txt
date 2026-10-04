@@ -1,0 +1,28 @@
+User-agent: *
+Allow: /
+Disallow: /xaxmd5/
+Disallow: /api/
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://xauconnect.com/sitemap.xml
+Sitemap: https://xauconnect.com/sitemaps/chains.xml
+Sitemap: https://xauconnect.com/sitemaps/swap.xml
+Sitemap: https://xauconnect.com/sitemaps/cross-chain.xml
+Sitemap: https://xauconnect.com/sitemaps/meme.xml
+Sitemap: https://xauconnect.com/sitemaps/learn.xml
+Sitemap: https://xauconnect.com/sitemaps/search.xml
+Sitemap: https://xauconnect.com/sitemaps/core.xml

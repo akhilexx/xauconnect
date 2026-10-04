@@ -1,0 +1,209 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "XAUConnect Swap API",
+    "version": "1.0.0",
+    "description": "Non-custodial multi-chain DEX aggregator API for quotes, transaction building, and agent integrations.",
+    "contact": { "url": "https://xauconnect.com/developers" }
+  },
+  "servers": [{ "url": "https://xauconnect.com/api", "description": "Production" }],
+  "tags": [
+    { "name": "meta", "description": "Chains, tokens, settings" },
+    { "name": "swap", "description": "Same-chain quotes and execution payloads" },
+    { "name": "cross-chain", "description": "Cross-chain bridge routes" },
+    { "name": "analytics", "description": "Swap recording for admin analytics" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "Service health and feature flags",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "version": { "type": "string" },
+                    "features": { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swap/chains": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "Supported chains",
+        "responses": { "200": { "description": "Chain list" } }
+      }
+    },
+    "/swap/tokens": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "Search token catalog",
+        "parameters": [
+          { "name": "chainKey", "in": "query", "schema": { "type": "string" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": { "200": { "description": "Token list" } }
+      }
+    },
+    "/swap/dexes": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "DEX registry",
+        "parameters": [{ "name": "chainKey", "in": "query", "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "DEX list" } }
+      }
+    },
+    "/swap/settings": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "Per-chain fee and slippage defaults",
+        "parameters": [{ "name": "chainKey", "in": "query", "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Settings" } }
+      }
+    },
+    "/swap/allowance": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "EVM ERC-20 allowance (agent helper)",
+        "parameters": [
+          { "name": "chainKey", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "token", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "owner", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "spender", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Allowance in base units" } }
+      }
+    },
+    "/swap/quote": {
+      "post": {
+        "tags": ["swap"],
+        "summary": "Aggregate same-chain quotes",
+        "parameters": [
+          { "name": "X-Client-Id", "in": "header", "schema": { "type": "string" } },
+          { "name": "X-Client-Source", "in": "header", "schema": { "type": "string", "enum": ["web", "api", "agent"] } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["chainKey", "tokenIn", "tokenOut", "amountIn"],
+                "properties": {
+                  "chainKey": { "type": "string" },
+                  "tokenIn": { "type": "string" },
+                  "tokenOut": { "type": "string" },
+                  "amountIn": { "type": "string", "description": "Base units (wei/lamports)" },
+                  "amount": { "type": "string", "description": "Human amount when amountUnit=human" },
+                  "amountUnit": { "type": "string", "enum": ["human", "base"] },
+                  "slippageBps": { "type": "integer", "default": 50 },
+                  "taker": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "AggregatedQuote" } }
+      }
+    },
+    "/swap/build": {
+      "post": {
+        "tags": ["swap"],
+        "summary": "Build unsigned swap transaction",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object" } } } },
+        "responses": { "200": { "description": "SwapTx with evm or solanaTransaction" } }
+      }
+    },
+    "/swap/submit-solana": {
+      "post": {
+        "tags": ["swap"],
+        "summary": "Broadcast signed Solana transaction",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["signedTransaction"],
+                "properties": { "signedTransaction": { "type": "string", "format": "byte" } }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Signature and confirmation" } }
+      }
+    },
+    "/swap/record": {
+      "post": {
+        "tags": ["analytics"],
+        "summary": "Record swap for admin analytics",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chainKey": { "type": "string" },
+                  "dexId": { "type": "string" },
+                  "tokenIn": { "type": "string" },
+                  "tokenOut": { "type": "string" },
+                  "amountIn": { "type": "string" },
+                  "amountOut": { "type": "string" },
+                  "protocolFee": { "type": "string" },
+                  "feeBps": { "type": "integer" },
+                  "txHash": { "type": "string" },
+                  "address": { "type": "string" },
+                  "status": { "type": "string", "enum": ["confirmed", "failed", "submitted", "quoted"] },
+                  "source": { "type": "string", "enum": ["web", "api", "agent"] },
+                  "clientId": { "type": "string" },
+                  "requestId": { "type": "string", "format": "uuid" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "ok" } }
+      }
+    },
+    "/swap/cross-chain/quote": {
+      "post": {
+        "tags": ["cross-chain"],
+        "summary": "Cross-chain quote",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object" } } } },
+        "responses": { "200": { "description": "CrossChainQuote" } }
+      }
+    },
+    "/swap/cross-chain/build": {
+      "post": {
+        "tags": ["cross-chain"],
+        "summary": "Build cross-chain origin transaction",
+        "responses": { "200": { "description": "CrossChainBuild with executionSteps" } }
+      }
+    },
+    "/swap/cross-chain/status/{quoteId}": {
+      "get": {
+        "tags": ["cross-chain"],
+        "summary": "Poll bridge status",
+        "parameters": [
+          { "name": "quoteId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "originChainKey", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "originTxHash", "in": "query", "required": true, "schema": { "type": "string" } },
+          { "name": "toChainKey", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Bridge status" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+# XAUConnect reverse proxy (runs on the Windows VM as NSSM service
+# "xauconnect-proxy", binary C:\caddy\caddy.exe, config C:\caddy\Caddyfile).
+#
+# Single origin on :80 (Cloudflare terminates TLS for xauconnect.com):
+#   /api/*  -> backend REST   (prefix stripped)
+#   /ws     -> backend WebSocket
+#   *       -> Next.js web app
+#
+# This is what makes same-origin "/api" + "/ws" work from the browser — no
+# CORS, no mixed-content, no hard-coded IPs in the client bundle.
+:80 {
+	encode gzip
+
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	handle /ws {
+		reverse_proxy 127.0.0.1:4000
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}

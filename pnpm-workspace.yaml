@@ -1,0 +1,18 @@
+# apps/mobile is intentionally NOT part of the pnpm workspace:
+# Expo/React Native manages its own dependency tree (see apps/mobile/README.md).
+packages:
+  - "apps/web"
+  - "packages/*"
+  - "backend"
+
+# pnpm 10 reads the build-script allowlist from here (not package.json).
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - prisma
+  - esbuild
+  - sharp
+  - keccak
+  - secp256k1
+  - bufferutil
+  - utf-8-validate

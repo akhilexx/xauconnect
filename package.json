@@ -1,0 +1,62 @@
+{
+  "name": "xauconnect",
+  "version": "0.1.0",
+  "private": true,
+  "description": "XAUConnect — The Most Liquid Gold-Standard DEX Aggregator & Meme Launch Platform",
+  "license": "MIT",
+  "packageManager": "pnpm@10.26.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,sol}\"",
+    "contracts:test": "pnpm --filter @xauconnect/contracts test",
+    "db:generate": "pnpm --filter @xauconnect/backend db:generate",
+    "db:migrate": "pnpm --filter @xauconnect/backend db:migrate",
+    "seo:generate": "tsx scripts/seo/generate-all.ts",
+    "seo:enrich": "tsx scripts/seo/enrich-all-pages.ts",
+    "seo:validate": "tsx scripts/seo/validate-seo-content.ts",
+    "seo:build": "./scripts/seo-build.sh --fast",
+    "seo:build:full": "./scripts/seo-build.sh --full",
+    "seo:build:refresh": "SEO_REFRESH=1 ./scripts/seo-build.sh --full",
+    "seo:publish": "./scripts/seo-publish.sh",
+    "protocol:wallets:generate": "tsx scripts/generate-protocol-wallets.ts",
+    "protocol:wallets:seed": "tsx scripts/seed-protocol-wallets.ts",
+    "swap:tokens:build": "tsx scripts/build-swap-token-lists.ts",
+    "api:spec:validate": "node -e \"JSON.parse(require('fs').readFileSync('packages/api-spec/openapi.json','utf8')); console.log('openapi.json OK')\""
+  },
+  "devDependencies": {
+    "@solana/web3.js": "^1.98.0",
+    "@scure/bip32": "^1.7.0",
+    "@scure/bip39": "^1.6.0",
+    "bs58": "^6.0.0",
+    "dotenv": "^16.4.7",
+    "prettier": "^3.3.3",
+    "prisma": "6.19.3",
+    "tsx": "^4.19.2",
+    "turbo": "^2.3.3",
+    "typescript": "^5.6.3",
+    "viem": "^2.21.57"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "sharp",
+      "keccak",
+      "secp256k1",
+      "bufferutil",
+      "utf-8-validate"
+    ]
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3"
+  }
+}

@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import "@xauconnect/ui/styles.css";
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(4.25rem + env(safe-area-inset-top, 0px));
+}
+
+html,
+body {
+  /* Full-bleed hero/flow-field layers must never cause horizontal scroll. */
+  overflow-x: clip;
+}
+
+body {
+  background-color: #f8f9fa;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(255, 215, 0, 0.16), transparent),
+    radial-gradient(ellipse 60% 50% at 90% 15%, rgba(255, 105, 180, 0.1), transparent),
+    radial-gradient(ellipse 50% 40% at 5% 35%, rgba(255, 170, 0, 0.08), transparent),
+    radial-gradient(ellipse 55% 45% at 80% 85%, rgba(255, 105, 180, 0.06), transparent),
+    radial-gradient(ellipse 45% 40% at 15% 90%, rgba(255, 215, 0, 0.07), transparent);
+  background-attachment: fixed;
+  color: #15171c;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Liquid aurora — two slowly drifting gradient blobs behind all content. */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
+  will-change: transform;
+}
+
+body::before {
+  width: 44rem;
+  height: 44rem;
+  top: -16rem;
+  left: -12rem;
+  background: radial-gradient(
+    circle,
+    rgba(255, 215, 0, 0.22) 0%,
+    rgba(255, 170, 0, 0.1) 45%,
+    transparent 70%
+  );
+  animation: aurora-a 26s ease-in-out infinite alternate;
+}
+
+body::after {
+  width: 40rem;
+  height: 40rem;
+  bottom: -14rem;
+  right: -10rem;
+  background: radial-gradient(
+    circle,
+    rgba(255, 105, 180, 0.16) 0%,
+    rgba(255, 182, 193, 0.08) 50%,
+    transparent 72%
+  );
+  animation: aurora-b 32s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-a {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(10rem, 6rem, 0) scale(1.15);
+  }
+}
+
+@keyframes aurora-b {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-8rem, -7rem, 0) scale(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none;
+  }
+}
+
+@media (max-width: 767px) {
+  body {
+    background-attachment: scroll;
+  }
+
+  body::before {
+    width: 18rem;
+    height: 18rem;
+    top: -8rem;
+    left: -6rem;
+    filter: blur(56px);
+  }
+
+  body::after {
+    width: 16rem;
+    height: 16rem;
+    bottom: -6rem;
+    right: -5rem;
+    filter: blur(56px);
+  }
+
+  /* iOS Safari zooms focused inputs below 16px. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="color"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  [data-sonner-toaster][data-x-position="right"] {
+    right: 12px !important;
+    bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px)) !important;
+    left: 12px !important;
+  }
+}
+
+/* Horizontal pill rails (chain selector, chart intervals) — no layout blow-out on mobile */
+.scroll-x-tabs {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scroll-x-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Page transition base */
+::selection {
+  background: rgba(255, 215, 0, 0.35);
+}
+
+/* Solana wallet-adapter modal above app chrome (navbar z-40). */
+.wallet-adapter-modal-wrapper {
+  z-index: 9999 !important;
+}
