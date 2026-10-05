@@ -6,6 +6,7 @@ import { cn } from "@xauconnect/ui";
 
 const NAV = [
   { href: "/developers", label: "Overview", exact: true },
+  { href: "/developers/gold-curve", label: "Gold Curve" },
   { href: "/developers/quickstart", label: "Quickstart" },
   { href: "/developers/api", label: "API Reference", exact: true },
   { href: "/developers/api/swap", label: "Same-chain swap" },
@@ -28,7 +29,7 @@ export function DevDocsNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="scroll-x-tabs glass sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-20 flex max-w-[calc(100vw-1.5rem)] flex-row gap-1 overflow-x-auto rounded-2xl p-1 lg:top-24 lg:max-w-none lg:flex-col lg:overflow-visible">
+    <nav className="glass flex flex-wrap gap-1 rounded-2xl p-1.5 lg:flex-col">
       {NAV.map((item) => {
         const { href, label } = item;
         const exact = "exact" in item ? item.exact : undefined;

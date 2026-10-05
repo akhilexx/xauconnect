@@ -14,7 +14,13 @@ const api = new XauApiClient({
 
 const { best } = await api.quote({ ... });
 const tx = await api.buildSwap({ request, route: best!, minAmountOut });
-await api.recordSwap({ ..., source: "agent" });`}</pre>
+await api.recordSwap({ ..., source: "agent" });
+
+const prepared = await api.prepareLaunch({ ... });
+const { curve } = await api.goldCurve(prepared.mint!);`}</pre>
+      <p>
+        Gold Curve methods are documented on the <a href="/developers/gold-curve">Gold Curve</a> page.
+      </p>
     </DevDocsShell>
   );
 }

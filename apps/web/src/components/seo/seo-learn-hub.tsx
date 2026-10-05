@@ -57,20 +57,17 @@ export function SeoLearnHub({
   const groups = groupByEyebrow(pages);
 
   return (
-    <article className="xau-content mx-auto w-full max-w-3xl space-y-10 pb-10 pt-2">
+    <article className="xau-content mx-auto flex w-full max-w-5xl flex-col gap-6">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <header className="space-y-4 border-b border-white/60 pb-8">
-        <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-dark">
-          <span className="h-px w-6 bg-gold-gradient" aria-hidden />
-          Library
-        </p>
-        <h1 className="font-display text-[1.75rem] font-extrabold leading-[1.12] tracking-tight text-ink sm:text-[2.6rem]">
+      <header>
+        <h1 className="font-display text-[1.65rem] font-extrabold leading-[1.15] tracking-tight text-ink sm:text-3xl">
           {title}
         </h1>
-        <p className="text-[1.0625rem] leading-[1.75] text-ink-soft">{description}</p>
-        <p className="text-sm text-ink-muted">
-          {pages.length} articles · written by {BRAND_NAME} Labs ·{" "}
-          <Link href={sibling.href} className="font-semibold text-gold-dark hover:underline">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-muted">{description}</p>
+        <p className="mt-2 text-sm text-ink-muted">
+          {pages.length} articles
+          <span className="mx-1.5 text-ink-faint">·</span>
+          <Link href={sibling.href} className="font-semibold text-gold-deep hover:underline">
             {sibling.label}
           </Link>
         </p>
@@ -78,13 +75,13 @@ export function SeoLearnHub({
 
       {groups.map(([eyebrow, items]) => (
         <section key={eyebrow} className="space-y-3">
-          <h2 className="font-display text-lg font-bold text-ink">{eyebrow}</h2>
-          <ul className="glass divide-y divide-white/60 rounded-glass">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-ink-muted">{eyebrow}</h2>
+          <ul className="grid gap-3 sm:grid-cols-2">
             {items.map((page) => (
               <li key={page.path}>
-                <Link href={page.path} className="group block p-4 transition hover:bg-gold/[0.06] sm:p-5">
+                <Link href={page.path} className="glass group block h-full rounded-glass p-4 transition hover:bg-gold/[0.06]">
                   <p className="font-display text-base font-bold text-ink group-hover:text-gold-dark">{page.h1}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-ink-muted">{page.description}</p>
+                  <p className="mt-1 line-clamp-3 text-sm leading-relaxed text-ink-muted">{page.description}</p>
                 </Link>
               </li>
             ))}

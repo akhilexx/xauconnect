@@ -1,28 +1,20 @@
 import Link from "next/link";
-import { BRAND_LOGO, BRAND_NAME } from "@xauconnect/utils";
+import { BRAND_NAME } from "@xauconnect/utils";
+import { BrandGlyph } from "@/components/brand-glyph";
+import { BrandMark } from "@/components/brand-logo";
+import { DESKTOP_NAV } from "@/lib/site-nav";
 
-const NAV_LINKS = [
+const FOOTER_LINKS = [
   { href: "/launchpad", label: "Launchpad" },
   { href: "/swap", label: "Swap" },
+  { href: "/buy-crypto", label: "Buy crypto" },
+  { href: "/sell-crypto", label: "Sell crypto" },
   { href: "/liquidity", label: "Liquidity" },
   { href: "/discover", label: "Discover" },
   { href: "/learn", label: "Learn" },
   { href: "/developers", label: "Developers" },
   { href: "/wallet", label: "Wallet" },
-] as const;
-
-const FOOTER_PRODUCT = [
-  { href: "/launchpad", label: "Launchpad" },
-  { href: "/swap", label: "Swap" },
-  { href: "/discover", label: "Discover" },
-  { href: "/liquidity", label: "Liquidity" },
-] as const;
-
-const FOOTER_RESOURCES = [
-  { href: "/learn", label: "Learn" },
-  { href: "/learn/guides", label: "Guides" },
-  { href: "/developers", label: "Developers" },
-  { href: "/developers/api", label: "API reference" },
+  { href: "/profile", label: "Profile" },
 ] as const;
 
 const LEGAL_LINKS = [
@@ -53,32 +45,33 @@ export function SeoSiteChrome({ children }: { children: React.ReactNode }) {
           <nav className="flex h-14 w-full items-center justify-between gap-3 px-4 sm:h-[4.25rem] sm:px-6 lg:px-8">
             <Link
               href="/"
-              className="group flex min-w-0 items-center gap-2 rounded-full px-1 py-1 transition-colors duration-200 hover:bg-white/70 sm:gap-2.5 sm:px-1.5"
+              className="group flex min-w-0 shrink-0 items-center gap-2 rounded-full px-1 py-1 transition-colors duration-200 hover:bg-white/70 sm:gap-2.5 sm:px-1.5"
               aria-label={`${BRAND_NAME} home`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={BRAND_LOGO.src}
-                alt={`${BRAND_NAME} logo`}
-                width={32}
-                height={32}
-                className="h-8 w-8 shrink-0 overflow-visible object-contain transition-transform duration-200 group-hover:scale-[1.04]"
-              />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-visible sm:h-9 sm:w-9">
+                <BrandMark
+                  size={32}
+                  className="overflow-visible object-contain transition-transform duration-200 group-hover:scale-[1.04]"
+                />
+              </span>
               <span className="truncate font-display text-sm font-extrabold tracking-tight sm:text-base md:text-lg">
                 XAU<span className="gold-text">Connect</span>
               </span>
             </Link>
 
-            <div className="hidden items-center rounded-full bg-white/50 p-1 shadow-[0_1px_2px_rgba(21,23,28,0.04)] ring-1 ring-ink/[0.06] md:flex">
-              {NAV_LINKS.map(({ href, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="rounded-full px-3.5 py-1.5 text-[13px] font-medium tracking-tight text-ink-muted transition-colors duration-200 hover:bg-white/80 hover:text-ink"
-                >
-                  {label}
-                </Link>
-              ))}
+            <div className="hidden min-w-0 flex-1 items-center justify-center overflow-x-auto md:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex items-center gap-0.5 rounded-full bg-white/50 p-1 shadow-[0_1px_2px_rgba(21,23,28,0.04)] ring-1 ring-ink/[0.06]">
+                {DESKTOP_NAV.map(({ href, label, mark }) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="flex h-9 shrink-0 items-center gap-2 rounded-full px-3 text-[13px] font-medium tracking-tight text-ink-muted transition-colors duration-200 hover:bg-white/70 hover:text-ink"
+                  >
+                    <BrandGlyph src={mark} size={20} />
+                    <span className="whitespace-nowrap">{label}</span>
+                  </Link>
+                ))}
+              </div>
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5">
@@ -92,7 +85,7 @@ export function SeoSiteChrome({ children }: { children: React.ReactNode }) {
                   </span>
                 </summary>
                 <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(16rem,calc(100vw-1.5rem))] overflow-hidden rounded-[1.25rem] border border-white/80 bg-white/95 p-2 shadow-glass-lg">
-                  {NAV_LINKS.map(({ href, label }) => (
+                  {DESKTOP_NAV.map(({ href, label }) => (
                     <Link
                       key={href}
                       href={href}
@@ -107,77 +100,59 @@ export function SeoSiteChrome({ children }: { children: React.ReactNode }) {
                 href="/swap"
                 className="inline-flex h-10 items-center justify-center rounded-full bg-gold-gradient px-3.5 text-sm font-semibold text-ink shadow-gold-glow transition hover:brightness-105 sm:px-5"
               >
-                <span className="sm:hidden">Swap</span>
-                <span className="hidden sm:inline">Launch app</span>
+                Swap
               </Link>
             </div>
           </nav>
         </header>
 
-        <main className="w-full min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-12 lg:px-8">
+        <main className="w-full min-w-0 flex-1 px-4 pb-6 pt-3 sm:px-6 sm:pb-10 sm:pt-6 lg:px-8">
           {children}
         </main>
 
-        <footer className="mt-auto border-t border-white/55 bg-white/45 backdrop-blur-glass">
-          <div className="w-full px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-3">
-                <Link
-                  href="/"
-                  className="flex items-center gap-2.5"
-                  aria-label={`${BRAND_NAME} home`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={BRAND_LOGO.src} alt="" width={30} height={30} className="object-contain" />
-                  <span className="font-display text-base font-extrabold tracking-tight">
-                    XAU<span className="gold-text">Connect</span>
-                  </span>
-                </Link>
-                <p className="max-w-xs text-sm leading-relaxed text-ink-muted">
-                  A non-custodial multi-chain swap aggregator routing trades across seven networks for
-                  the best execution.
-                </p>
-              </div>
-
-              <FooterColumn title="Product" links={FOOTER_PRODUCT} />
-              <FooterColumn title="Resources" links={FOOTER_RESOURCES} />
-              <FooterColumn title="Company" links={LEGAL_LINKS} />
+        <footer className="mt-auto border-t border-white/55 bg-white/40 backdrop-blur-glass">
+          <div className="w-full px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+              <Link
+                href="/"
+                className="flex items-center gap-2.5 self-start rounded-xl transition-opacity hover:opacity-90"
+                aria-label={`${BRAND_NAME} home`}
+              >
+                <BrandMark size={28} className="sm:hidden" />
+                <BrandMark size={32} className="hidden sm:block" />
+                <span className="font-display text-sm font-extrabold tracking-tight sm:text-base">
+                  XAU<span className="gold-text">Connect</span>
+                </span>
+              </Link>
+              <nav
+                aria-label="Footer"
+                className="hidden flex-wrap gap-x-4 gap-y-2 text-sm font-medium text-ink-muted md:flex"
+              >
+                {FOOTER_LINKS.map(({ href, label }) => (
+                  <Link key={href} href={href} className="transition-colors hover:text-ink">
+                    {label}
+                  </Link>
+                ))}
+              </nav>
             </div>
-
-            <div className="mt-10 flex flex-col gap-2 border-t border-white/55 pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-ink-faint">© {year} XAUConnect Labs. All rights reserved.</p>
-              <p className="text-xs text-ink-faint">
-                Digital assets are volatile — nothing here is financial advice.
-              </p>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-ink-faint">
+              {LEGAL_LINKS.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="inline-flex min-h-10 items-center transition-colors hover:text-ink-muted md:min-h-0"
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-col gap-1 border-t border-white/50 pt-3 text-[11px] leading-relaxed text-ink-faint sm:mt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:pt-4">
+              <p>© {year} XAUConnect Labs</p>
+              <p className="sm:text-right">Digital assets are volatile — not financial advice.</p>
             </div>
           </div>
         </footer>
       </div>
     </>
-  );
-}
-
-function FooterColumn({
-  title,
-  links,
-}: {
-  title: string;
-  links: ReadonlyArray<{ href: string; label: string }>;
-}) {
-  return (
-    <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">
-        {title}
-      </p>
-      <ul className="mt-3 space-y-2">
-        {links.map(({ href, label }) => (
-          <li key={href}>
-            <Link href={href} className="text-sm text-ink-muted transition hover:text-ink">
-              {label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }

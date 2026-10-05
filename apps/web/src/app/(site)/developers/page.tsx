@@ -6,17 +6,27 @@ export default function DevelopersPage() {
   return (
     <DevDocsShell
       title="Build with XAUConnect"
-      description="A free, non-custodial Swap API for multi-chain quotes, unsigned transaction building, cross-chain routing, and AI-agent integrations — no API key for quotes or builds."
+      description="Launch a Gold Curve on Meteora, or quote and build unsigned swaps across seven chains. No API key. Your wallet signs every transaction."
     >
       <p>
-        XAUConnect is a <strong className="text-ink">non-custodial</strong> DEX aggregator. The API
-        returns prices and <strong className="text-ink">unsigned</strong> transactions; your wallet,
-        bot, or agent signs and broadcasts on-chain. The service never holds funds and never accepts
-        private keys. Quotes and builds require <strong className="text-ink">no API key</strong> and
-        are rate-limited per IP.
+        XAUConnect is a <strong className="text-ink">non-custodial</strong> launchpad and DEX
+        aggregator. The API returns prices and <strong className="text-ink">unsigned</strong>{" "}
+        transactions; your wallet, bot, or agent signs and broadcasts on-chain. The service never
+        holds funds and never accepts private keys. Quotes, builds, and Gold Curve prepares require{" "}
+        <strong className="text-ink">no API key</strong> and are rate-limited per IP.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2 not-prose">
+        <GlassCard className="p-4 sm:col-span-2">
+          <h2 className="font-display text-lg font-bold text-ink">Gold Curve</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Prepare an unsigned Meteora bonding-curve launch. Fair, Shield, and Distribute, quoted in
+            SOL or USDC.
+          </p>
+          <Link href="/developers/gold-curve" className="mt-3 inline-block text-sm font-semibold text-gold-deep">
+            Launch API →
+          </Link>
+        </GlassCard>
         <GlassCard className="p-4">
           <h2 className="font-display text-lg font-bold text-ink">Quickstart</h2>
           <p className="mt-1 text-sm text-ink-muted">Quote → build → sign → record in five minutes.</p>
@@ -59,6 +69,10 @@ export default function DevelopersPage() {
 
       <h2>What you can do</h2>
       <ul>
+        <li>
+          <strong>Launch</strong> a Solana token on a published Gold Curve. See{" "}
+          <Link href="/developers/gold-curve">Gold Curve</Link>.
+        </li>
         <li><strong>Quote</strong> the best same-chain route across 1inch, 0x, Jupiter, and indexed pools.</li>
         <li><strong>Build</strong> an unsigned EVM transaction or base64 Solana transaction for a chosen route.</li>
         <li><strong>Bridge</strong> assets across chains with cross-chain quote/build/status endpoints.</li>

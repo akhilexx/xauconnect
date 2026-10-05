@@ -273,14 +273,11 @@ export function SeoPageShell({ page }: { page: SeoPageConfig }) {
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-12">
         <div className="min-w-0 max-w-3xl space-y-10">
-          <header className="space-y-4 border-b border-white/60 pb-8">
+          <header className="space-y-3 border-b border-white/60 pb-6">
             {page.eyebrow ? (
-              <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-gold-dark">
-                <span className="h-px w-6 bg-gold-gradient" aria-hidden />
-                {page.eyebrow}
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gold-deep">{page.eyebrow}</p>
             ) : null}
-            <h1 className="font-display text-[1.75rem] font-extrabold leading-[1.12] tracking-tight text-ink sm:text-[2.6rem]">
+            <h1 className="font-display text-[1.65rem] font-extrabold leading-[1.15] tracking-tight text-ink sm:text-3xl">
               {page.h1}
             </h1>
             {page.kind === "learn" || page.kind === "guide" ? (
