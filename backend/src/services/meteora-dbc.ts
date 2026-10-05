@@ -588,23 +588,46 @@ async function curveSwapVolume(
   let volumeQuote = 0;
   let parsed = 0;
   let tradedLastHour = false;
-  for (let i = 0; i < day.length; i += 20) {
-    const slice = day.slice(i, i + 20);
-    const txs = await connection.getParsedTransactions(
-      slice.map((row) => row.signature),
-      { maxSupportedTransactionVersion: 1 },
-    );
-    for (let j = 0; j < txs.length; j++) {
-      const tx = txs[j];
-      if (!tx?.meta || tx.meta.err) continue;
-      parsed += 1;
-      const logs = (tx.meta.logMessages ?? []).join(" ");
-      if (!logs.includes("Instruction: Swap")) continue;
-      if ((slice[j]?.blockTime ?? 0) >= now - 3_600) tradedLastHour = true;
-      volumeQuote += quoteMoved(tx.meta, quoteMint);
+  const txs = await mapLimit(day, 6, async (row) => {
+    try {
+      const tx = await connection.getParsedTransaction(row.signature, {
+        maxSupportedTransactionVersion: 1,
+      });
+      return { row, tx };
+    } catch (err) {
+      logger.debug({ err: (err as Error).message }, "curve swap tx skipped");
+      return { row, tx: null };
     }
+  });
+  for (const item of txs) {
+    const tx = item?.tx;
+    if (!tx?.meta || tx.meta.err) continue;
+    parsed += 1;
+    const logs = (tx.meta.logMessages ?? []).join(" ");
+    if (!logs.includes("Instruction: Swap")) continue;
+    if ((item.row.blockTime ?? 0) >= now - 3_600) tradedLastHour = true;
+    volumeQuote += quoteMoved(tx.meta, quoteMint);
+  }
+  if (day.length > 0 && parsed === 0) {
+    logger.warn({ pool: pool.toBase58(), signatures: day.length }, "curve swap scan parsed nothing");
   }
   return { volumeQuote, known: parsed > 0 || day.length === 0, tradedLastHour };
+}
+
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      const item = items[index];
+      if (item === undefined) continue;
+      out[index] = await fn(item);
+    }
+  });
+  await Promise.all(workers);
+  return out;
 }
 
 async function curveHolders(connection: Connection, mint: string, vault: string): Promise<number | null> {
@@ -736,7 +759,7 @@ export async function goldCurveMarket(
     }
   }
 
-  if (market) goldMarketCache.set(mint, { at: Date.now(), market });
+  if (market?.volume24hUsd != null) goldMarketCache.set(mint, { at: Date.now(), market });
   return market;
 }
 
