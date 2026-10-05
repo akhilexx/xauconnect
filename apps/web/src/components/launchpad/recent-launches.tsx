@@ -24,9 +24,9 @@ export function RecentLaunches({ placement = "grid" }: { placement?: "grid" | "a
     <section className={placement === "aside" ? "xl:sticky xl:top-6" : undefined}>
       <h2 className="mb-3 font-display text-xl font-bold">Recent XAU launches</h2>
       {query.isLoading && (
-        <div className={placement === "aside" ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"}>
+        <div className="grid gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full" />
+            <Skeleton key={i} className="h-20 w-full" />
           ))}
         </div>
       )}
@@ -36,7 +36,7 @@ export function RecentLaunches({ placement = "grid" }: { placement?: "grid" | "a
           No launches yet — be the first. Tokens deployed here are auto-listed on Discover.
         </GlassCard>
       )}
-      <div className={placement === "aside" ? "grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"}>
+      <div className="grid gap-3">
         {launches.map((launch) => (
           <Link
             key={launch.id}
@@ -45,17 +45,17 @@ export function RecentLaunches({ placement = "grid" }: { placement?: "grid" | "a
             <GlassCard hover className="flex items-center gap-3">
               <TokenIcon symbol={launch.token.symbol} src={launch.token.logoURI ?? undefined} size={40} />
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2 font-bold">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-bold">
                   {launch.token.symbol}
                   <Badge tone={launch.type === "BONDING_CURVE" ? "pink" : "gold"}>
                     {launch.type === "BONDING_CURVE" ? "curve" : "standard"}
                   </Badge>
+                  <Badge tone={launch.status === "GRADUATED" ? "success" : "neutral"}>
+                    {launch.status.toLowerCase()}
+                  </Badge>
                 </span>
-                <span className="block truncate text-xs text-ink-muted">{launch.token.name}</span>
+                <span className="mt-0.5 block text-xs text-ink-muted">{launch.token.name}</span>
               </span>
-              <Badge tone={launch.status === "GRADUATED" ? "success" : "neutral"}>
-                {launch.status.toLowerCase()}
-              </Badge>
             </GlassCard>
           </Link>
         ))}
