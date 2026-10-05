@@ -45,8 +45,11 @@ function GoldCurveCard({ curve }: { curve: GoldCurveView }) {
             <span className="ml-2 text-base font-semibold text-ink-muted">{curve.segment}</span>
           </p>
         </div>
-        <p className="text-sm font-bold tabular-nums">
+        <p className="text-right text-sm font-bold tabular-nums">
           {curve.raised} / {curve.threshold} {curve.quoteSymbol}
+          <span className="mt-0.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+            In the curve
+          </span>
         </p>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-white/40">
@@ -55,7 +58,7 @@ function GoldCurveCard({ curve }: { curve: GoldCurveView }) {
       <p className="text-xs text-ink-muted">
         {curve.migrated
           ? "Graduated. Trading continues on the locked DAMM v2 pool through Jupiter."
-          : `${pct.toFixed(1)}% of the way to ${curve.threshold} ${curve.quoteSymbol}. Meteora keepers migrate the pool at that exact amount.`}
+          : `${pct.toFixed(1)}% of the way to ${curve.threshold} ${curve.quoteSymbol}. That amount is what is sitting in the curve now. Volume counts every buy and sell. Meteora keepers migrate the pool at the threshold.`}
       </p>
       <div className="grid gap-2 text-sm sm:grid-cols-3">
         <div className="glass rounded-2xl p-3">

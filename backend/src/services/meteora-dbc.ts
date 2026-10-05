@@ -9,9 +9,10 @@ import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {
   Keypair,
   PublicKey,
+  Connection,
   TransactionMessage,
   VersionedTransaction,
-  type Connection,
+  type ConfirmedSignatureInfo,
   type Transaction,
 } from "@solana/web3.js";
 import { CpAmm } from "@meteora-ag/cp-amm-sdk";
@@ -27,11 +28,13 @@ import {
   feeNumeratorToBps,
   getBaseFeeNumerator,
   getCurrentPoint,
+  getPriceFromSqrtPrice,
+  TokenDecimal,
 } from "@meteora-ag/dynamic-bonding-curve-sdk";
 import type { CurvePreset, CurveQuote, QuoteRequest, RouteQuote } from "@xauconnect/utils";
 import { db } from "../db/client.js";
 import { logger } from "../logger.js";
-import { withSolanaConnection } from "./solana-rpc.js";
+import { solanaRpcUrls, withSolanaConnection } from "./solana-rpc.js";
 import {
   CREATOR_LOCKED_LP_PCT,
   CREATOR_TRADING_FEE_PCT,
@@ -475,6 +478,266 @@ export async function goldCurveState(mint: string): Promise<GoldCurveView | null
       lockedLp: LOCKED_LP,
     };
   });
+}
+
+export interface GoldCurveMarket {
+  pool: string;
+  priceUsd: number;
+  liquidityUsd: number;
+  /** Null when the swap scan did not finish. Callers keep the previous volume. */
+  volume24hUsd: number | null;
+  marketCapUsd: number;
+  fdvUsd: number;
+  /** Null when the pool is older than a day, so lifetime move is not a 24h change. */
+  change24hPct: number | null;
+  /** Null when a swap landed in the last hour and we have no hourly price. */
+  change1hPct: number | null;
+  holders: number | null;
+}
+
+const GOLD_MARKET_MS = 20_000;
+const goldMarketCache = new Map<string, { at: number; market: GoldCurveMarket }>();
+let solUsdCache: { at: number; usd: number } | null = null;
+
+function spotPrice(sqrtPrice: BN, baseDecimals: number, quoteDecimals: number): number {
+  const price = getPriceFromSqrtPrice(sqrtPrice, baseDecimals as TokenDecimal, quoteDecimals).toNumber();
+  return Number.isFinite(price) ? price : 0;
+}
+
+async function solPriceUsd(): Promise<number> {
+  if (solUsdCache && Date.now() - solUsdCache.at < 60_000) return solUsdCache.usd;
+  try {
+    const res = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${WSOL_MINT}`, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(4_000),
+    });
+    if (!res.ok) return solUsdCache?.usd ?? 0;
+    const body = (await res.json()) as unknown;
+    const pairs = Array.isArray(body) ? body : ((body as { pairs?: unknown[] }).pairs ?? []);
+    let usd = 0;
+    let liquidity = -1;
+    for (const pair of pairs) {
+      const row = pair as { priceUsd?: string; liquidity?: { usd?: number } };
+      const price = Number(row.priceUsd ?? 0);
+      const liq = Number(row.liquidity?.usd ?? 0);
+      if (price > 0 && liq >= liquidity) {
+        usd = price;
+        liquidity = liq;
+      }
+    }
+    if (usd > 0) solUsdCache = { at: Date.now(), usd };
+    return usd;
+  } catch {
+    return solUsdCache?.usd ?? 0;
+  }
+}
+
+type TokenBalanceRow = {
+  accountIndex: number;
+  mint: string;
+  uiTokenAmount: { uiAmount: number | null; uiAmountString?: string | null };
+};
+
+function uiTokens(row: TokenBalanceRow | undefined): number {
+  if (!row) return 0;
+  if (row.uiTokenAmount.uiAmount != null) return row.uiTokenAmount.uiAmount;
+  const parsed = Number(row.uiTokenAmount.uiAmountString ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** Quote tokens that changed hands in one swap. Two equal legs count once. */
+function quoteMoved(
+  meta: { preTokenBalances?: TokenBalanceRow[] | null; postTokenBalances?: TokenBalanceRow[] | null },
+  quoteMint: string,
+): number {
+  const post = meta.postTokenBalances ?? [];
+  const pre = meta.preTokenBalances ?? [];
+  const deltas: number[] = [];
+  for (const row of post) {
+    if (row.mint !== quoteMint) continue;
+    const before = pre.find((item) => item.accountIndex === row.accountIndex);
+    const delta = Math.abs(uiTokens(row) - uiTokens(before));
+    if (delta > 0) deltas.push(delta);
+  }
+  if (deltas.length === 0) return 0;
+  const max = Math.max(...deltas);
+  const min = Math.min(...deltas);
+  if (deltas.length > 1 && min > 0 && Math.abs(max - min) / max < 0.02) return max;
+  return deltas.reduce((sum, n) => sum + n, 0);
+}
+
+async function curveSwapVolume(
+  connection: Connection,
+  pool: PublicKey,
+  quoteMint: string,
+): Promise<{ volumeQuote: number; known: boolean; tradedLastHour: boolean }> {
+  const now = Math.floor(Date.now() / 1000);
+  const dayAgo = now - 86_400;
+  const signatures: ConfirmedSignatureInfo[] = [];
+  let before: string | undefined;
+  for (let page = 0; page < 5; page++) {
+    const batch = await connection.getSignaturesForAddress(pool, { limit: 100, before });
+    if (batch.length === 0) break;
+    signatures.push(...batch);
+    const oldest = batch[batch.length - 1]?.blockTime ?? 0;
+    if (batch.length < 100 || oldest < dayAgo) break;
+    before = batch[batch.length - 1]?.signature;
+  }
+
+  const day = signatures.filter((row) => !row.err && (row.blockTime ?? 0) >= dayAgo);
+  let volumeQuote = 0;
+  let parsed = 0;
+  let tradedLastHour = false;
+  for (let i = 0; i < day.length; i += 20) {
+    const slice = day.slice(i, i + 20);
+    const txs = await connection.getParsedTransactions(
+      slice.map((row) => row.signature),
+      { maxSupportedTransactionVersion: 1 },
+    );
+    for (let j = 0; j < txs.length; j++) {
+      const tx = txs[j];
+      if (!tx?.meta || tx.meta.err) continue;
+      parsed += 1;
+      const logs = (tx.meta.logMessages ?? []).join(" ");
+      if (!logs.includes("Instruction: Swap")) continue;
+      if ((slice[j]?.blockTime ?? 0) >= now - 3_600) tradedLastHour = true;
+      volumeQuote += quoteMoved(tx.meta, quoteMint);
+    }
+  }
+  return { volumeQuote, known: parsed > 0 || day.length === 0, tradedLastHour };
+}
+
+async function curveHolders(connection: Connection, mint: string, vault: string): Promise<number | null> {
+  try {
+    const largest = await connection.getTokenLargestAccounts(new PublicKey(mint));
+    const positive = largest.value.filter((row) => (row.uiAmount ?? 0) > 0);
+    if (positive.length < 20) {
+      return positive.filter((row) => row.address.toBase58() !== vault).length;
+    }
+  } catch (err) {
+    logger.debug({ err: (err as Error).message }, "curve holder scan failed");
+  }
+
+  const url = solanaRpcUrls().find((item) => item.includes("helius"));
+  if (!url) return null;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getTokenAccounts",
+        params: { mint, limit: 1000, options: { showZeroBalance: false } },
+      }),
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      result?: { token_accounts?: Array<{ address?: string; owner?: string; amount?: string }> };
+    };
+    const accounts = json.result?.token_accounts ?? [];
+    const owners = new Set<string>();
+    for (const account of accounts) {
+      if (account.address === vault) continue;
+      if (BigInt(account.amount ?? "0") <= 0n) continue;
+      if (account.owner) owners.add(account.owner);
+    }
+    return owners.size;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Spot price, quote sitting in the curve, and swap volume for a Gold Curve mint.
+ * Returns null for tokens that are not one of our curves, and for pools that
+ * have already migrated to DAMM v2.
+ */
+export async function goldCurveMarket(
+  mint: string,
+  hint?: { priceUsd?: number },
+): Promise<GoldCurveMarket | null> {
+  const hit = goldMarketCache.get(mint);
+  if (hit && Date.now() - hit.at < GOLD_MARKET_MS) return hit.market;
+  if (!(await knownPoolAddress(mint))) return null;
+
+  let market: GoldCurveMarket | null = null;
+  for (const url of [...solanaRpcUrls()].reverse()) {
+    try {
+      const connection = new Connection(url, "confirmed");
+      const client = DynamicBondingCurveClient.create(connection, "confirmed");
+      market = await (async () => {
+    const poolAddress = await resolvePoolAddress(client, mint);
+    if (!poolAddress) return null;
+    const pool = await client.state.getPool(poolAddress);
+    if (!pool) return null;
+    const state = pool.poolState;
+    if (asNumber(state.isMigrated) === 1) return null;
+    const config = await client.state.getPoolConfig(state.config);
+    if (!config) return null;
+
+    const quoteMint = config.quoteMint.toBase58();
+    const quoteDec = quoteMint === USDC_MINT ? 6 : 9;
+    const supplyInfo = await connection.getTokenSupply(state.baseMint);
+    const baseDec = supplyInfo.value.decimals;
+    const supplyRaw = BigInt(supplyInfo.value.amount);
+    const baseRaw = BigInt(state.baseReserve.toString());
+    const scale = 10 ** baseDec;
+    const supplyTokens = Number(supplyRaw) / scale;
+    const circulating = Math.max(0, (Number(supplyRaw) - Number(baseRaw)) / scale);
+    const spot = spotPrice(new BN(state.sqrtPrice.toString()), baseDec, quoteDec);
+    const startSqrt = config.sqrtStartPrice;
+    const start = startSqrt ? spotPrice(new BN(startSqrt.toString()), baseDec, quoteDec) : spot;
+    if (!(spot > 0)) return null;
+
+    let quoteUsd = quoteMint === USDC_MINT ? 1 : await solPriceUsd();
+    if (!(quoteUsd > 0) && hint?.priceUsd && hint.priceUsd > 0) quoteUsd = hint.priceUsd / spot;
+    if (!(quoteUsd > 0)) return null;
+
+    const quoteInCurve = Number(formatUnits(state.quoteReserve.toString(), quoteDec));
+    let volumeQuote = 0;
+    let volumeKnown = false;
+    let tradedLastHour = false;
+    try {
+      const volume = await curveSwapVolume(connection, new PublicKey(poolAddress), quoteMint);
+      volumeQuote = volume.volumeQuote;
+      volumeKnown = volume.known;
+      tradedLastHour = volume.tradedLastHour;
+    } catch (err) {
+      logger.debug({ err: (err as Error).message, mint }, "curve volume scan failed");
+    }
+
+    const activation = asNumber(state.activationPoint);
+    const ageSec = activation > 1_000_000_000 ? Math.floor(Date.now() / 1000) - activation : Number.POSITIVE_INFINITY;
+    const priceUsd = spot * quoteUsd;
+    const holders = await curveHolders(connection, mint, state.baseVault.toBase58());
+
+    const change24hPct =
+      ageSec <= 86_400 && start > 0 ? ((spot - start) / start) * 100 : null;
+
+    return {
+      pool: poolAddress,
+      priceUsd,
+      liquidityUsd: quoteInCurve * quoteUsd,
+      volume24hUsd: volumeKnown ? volumeQuote * quoteUsd : null,
+      marketCapUsd: circulating * priceUsd,
+      fdvUsd: supplyTokens * priceUsd,
+      change24hPct: change24hPct != null && Number.isFinite(change24hPct) && Math.abs(change24hPct) < 1_000
+        ? change24hPct
+        : null,
+      change1hPct: tradedLastHour ? null : 0,
+      holders,
+    } satisfies GoldCurveMarket;
+      })();
+      break;
+    } catch (err) {
+      logger.debug({ err: (err as Error).message, mint }, "gold curve market rpc failed");
+    }
+  }
+
+  if (market) goldMarketCache.set(mint, { at: Date.now(), market });
+  return market;
 }
 
 export function formatUnits(raw: string, decimals: number): string {

@@ -12,6 +12,7 @@ import { dbRecentIndexedPools } from "../indexer/db/pools.js";
 import { discoveryFromCache, getDiscoveryPool } from "./discovery-cache.js";
 import { getLiveLaunches } from "./launches.js";
 import { lookupToken, seedStickyToken, type EnrichedMarketToken } from "./market-lookup.js";
+import { goldCurveMarket } from "./meteora-dbc.js";
 import { tokenCacheKey } from "./token-address.js";
 
 async function findCachedToken(
@@ -100,18 +101,19 @@ export async function discovery(tab: DiscoveryTab, chainKey?: string): Promise<M
 }
 
 export async function tokenDetail(chainKey: string, address: string): Promise<EnrichedMarketToken> {
-  const live = await lookupToken(chainKey, address);
-  if (live) return live;
+  let token = await lookupToken(chainKey, address);
 
-  const cached = await findCachedToken(chainKey, address);
-  if (cached) return seedStickyToken(chainKey, address, cached);
+  if (!token) {
+    const cached = await findCachedToken(chainKey, address);
+    if (cached) token = seedStickyToken(chainKey, address, cached);
+  }
 
-  if (db) {
+  if (!token && db) {
     const row = await db.token.findUnique({
       where: { chainKey_address: { chainKey, address } },
     });
     if (row) {
-      return seedStickyToken(chainKey, address, {
+      token = seedStickyToken(chainKey, address, {
         chainKey: row.chainKey,
         address: row.address,
         symbol: row.symbol,
@@ -128,7 +130,70 @@ export async function tokenDetail(chainKey: string, address: string): Promise<En
     }
   }
 
-  throw new ApiError(404, `Token not found: ${chainKey}/${address}`, "TOKEN_NOT_FOUND");
+  if (!token) {
+    throw new ApiError(404, `Token not found: ${chainKey}/${address}`, "TOKEN_NOT_FOUND");
+  }
+
+  return withCurveMarket(await withLaunchRow(token));
+}
+
+/** Keep the XAU launch badge when a live feed already returned the token. */
+async function withLaunchRow(token: EnrichedMarketToken): Promise<EnrichedMarketToken> {
+  if (!db) return token;
+  try {
+    const row = await db.token.findUnique({
+      where: { chainKey_address: { chainKey: token.chainKey, address: token.address } },
+      select: {
+        xauLaunch: true,
+        logoURI: true,
+        name: true,
+        symbol: true,
+        createdAt: true,
+        auditBadge: true,
+      },
+    });
+    if (!row) return token;
+    return {
+      ...token,
+      xauLaunch: token.xauLaunch || row.xauLaunch,
+      logoURI: token.logoURI || row.logoURI || undefined,
+      name: token.name && token.name !== "Unknown" ? token.name : row.name,
+      symbol: token.symbol && token.symbol !== "?" ? token.symbol : row.symbol,
+      createdAt: token.createdAt ?? row.createdAt.getTime(),
+      auditBadge:
+        token.auditBadge !== "none"
+          ? token.auditBadge
+          : (row.auditBadge.toLowerCase() as MarketToken["auditBadge"]),
+    };
+  } catch (err) {
+    logger.debug({ err: (err as Error).message }, "launch row lookup failed");
+    return token;
+  }
+}
+
+/** Replace feed numbers with the curve's own price, quote, and swap volume. */
+async function withCurveMarket(token: EnrichedMarketToken): Promise<EnrichedMarketToken> {
+  if (token.chainKey !== "solana") return token;
+  try {
+    const curve = await goldCurveMarket(token.address, { priceUsd: token.priceUsd });
+    if (!curve) return token;
+    return {
+      ...token,
+      priceUsd: curve.priceUsd,
+      liquidityUsd: curve.liquidityUsd,
+      volume24hUsd: curve.volume24hUsd ?? token.volume24hUsd,
+      marketCapUsd: curve.marketCapUsd,
+      fdvUsd: curve.fdvUsd,
+      change24hPct: curve.change24hPct ?? token.change24hPct,
+      change1hPct: curve.change1hPct ?? token.change1hPct,
+      holders: curve.holders ?? token.holders,
+      topPoolAddress: token.topPoolAddress ?? curve.pool,
+      sources: [...new Set([...(token.sources ?? []), "gold-curve"])],
+    };
+  } catch (err) {
+    logger.debug({ err: (err as Error).message, address: token.address }, "gold curve market overlay failed");
+    return token;
+  }
 }
 
 function singlePointCandle(token: { priceUsd: number; volume24hUsd: number }): Candle[] {

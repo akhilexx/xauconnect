@@ -81,7 +81,7 @@ export function TokenDetail({ chainKey, address }: { chainKey: string; address: 
 
   if (tokenQuery.isLoading && !token) {
     return (
-      <div className="mx-auto flex w-full flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-[260px] w-full sm:h-[420px]" />
       </div>
@@ -104,7 +104,7 @@ export function TokenDetail({ chainKey, address }: { chainKey: string; address: 
 
   if (!token) {
     return (
-      <div className="mx-auto flex w-full flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-[260px] w-full sm:h-[420px]" />
       </div>
@@ -112,14 +112,14 @@ export function TokenDetail({ chainKey, address }: { chainKey: string; address: 
   }
 
   return (
-    <div className="mx-auto flex w-full min-w-0 flex-col gap-4 sm:gap-5">
-      <GlassCard variant="strong" className="flex flex-col gap-4">
+    <div className="mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-4 sm:gap-5">
+      <GlassCard variant="strong" className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <TokenIcon symbol={token.symbol} src={token.logoURI} size={48} className="shrink-0 sm:hidden" />
           <TokenIcon symbol={token.symbol} src={token.logoURI} size={52} className="hidden shrink-0 sm:block" />
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-xl font-extrabold leading-tight sm:text-2xl">
-              <span className="block truncate">{token.name}</span>
+              <span className="block">{token.name}</span>
               <span className="text-base font-semibold text-ink-muted">({token.symbol})</span>
             </h1>
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -170,7 +170,7 @@ export function TokenDetail({ chainKey, address }: { chainKey: string; address: 
           </div>
         </div>
 
-        <div className="flex items-end justify-between gap-3 border-t border-white/50 pt-3 sm:justify-end sm:border-0 sm:pt-0">
+        <div className="flex w-full flex-col gap-3 border-t border-white/50 pt-3 sm:w-auto sm:min-w-44 sm:items-end sm:border-0 sm:pt-0">
           <div className="text-left sm:text-right">
             <span className="font-display text-2xl font-extrabold tabular-nums sm:text-3xl">
               {formatUsd(token.priceUsd)}
@@ -184,18 +184,17 @@ export function TokenDetail({ chainKey, address }: { chainKey: string; address: 
               {formatPercent(token.change24hPct)} 24h
             </span>
           </div>
+          <Link href={tradeHref} className="w-full sm:w-auto">
+            <GlassButton className="w-full sm:w-auto">
+              <ArrowLeftRight className="h-4 w-4" /> Trade {token.symbol}
+            </GlassButton>
+          </Link>
         </div>
-
-        <Link href={tradeHref} className="w-full">
-          <GlassButton className="w-full">
-            <ArrowLeftRight className="h-4 w-4" /> Trade {token.symbol}
-          </GlassButton>
-        </Link>
       </GlassCard>
 
       <GoldCurvePanel chainKey={chainKey} address={address} />
 
-      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard
           label="Market cap"
           value={token.marketCapUsd ?? 0}

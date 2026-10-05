@@ -26,9 +26,19 @@ if ((Get-Content .\.env -ErrorAction SilentlyContinue) -match '^DATABASE_URL=') 
 
 & $nssm start xauconnect-backend
 & $nssm restart xauconnect-web
-Start-Sleep -Seconds 10
 
-'backend: ' + (Invoke-WebRequest http://localhost:4000/health -UseBasicParsing).StatusCode
-'web:     ' + (Invoke-WebRequest http://localhost:3000/ -UseBasicParsing).StatusCode
-'proxy:   ' + (Invoke-WebRequest http://localhost/api/health -UseBasicParsing).StatusCode
+function Wait-Status([string]$url) {
+  for ($i = 1; $i -le 12; $i++) {
+    try {
+      return (Invoke-WebRequest $url -UseBasicParsing -TimeoutSec 5).StatusCode
+    } catch {
+      Start-Sleep -Seconds 5
+    }
+  }
+  throw "timed out waiting for $url"
+}
+
+'backend: ' + (Wait-Status 'http://localhost:4000/health')
+'web:     ' + (Wait-Status 'http://localhost:3000/')
+'proxy:   ' + (Wait-Status 'http://localhost/api/health')
 'REMOTE_APPLY_OK'
