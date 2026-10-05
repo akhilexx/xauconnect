@@ -515,12 +515,18 @@ async function solPriceUsd(): Promise<number> {
     const body = (await res.json()) as unknown;
     const pairs = Array.isArray(body) ? body : ((body as { pairs?: unknown[] }).pairs ?? []);
     let usd = 0;
-    let liquidity = -1;
+    let liquidity = 0;
     for (const pair of pairs) {
-      const row = pair as { priceUsd?: string; liquidity?: { usd?: number } };
+      const row = pair as {
+        priceUsd?: string;
+        liquidity?: { usd?: number };
+        quoteToken?: { symbol?: string };
+      };
+      const quote = row.quoteToken?.symbol;
+      if (quote && quote !== "USDC" && quote !== "USDT") continue;
       const price = Number(row.priceUsd ?? 0);
       const liq = Number(row.liquidity?.usd ?? 0);
-      if (price > 0 && liq >= liquidity) {
+      if (price > 0 && liq > liquidity) {
         usd = price;
         liquidity = liq;
       }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
@@ -50,6 +51,7 @@ function riskTone(score: number): "success" | "gold" | "danger" {
 }
 
 export function TokenDetail({ chainKey, address }: { chainKey: string; address: string }) {
+  const router = useRouter();
   const [interval, setInterval] = useState<(typeof INTERVALS)[number]>("1h");
   const chain = getChainByKey(chainKey);
 
@@ -184,11 +186,9 @@ export function TokenDetail({ chainKey, address }: { chainKey: string; address: 
               {formatPercent(token.change24hPct)} 24h
             </span>
           </div>
-          <Link href={tradeHref} className="w-full sm:w-auto">
-            <GlassButton className="w-full sm:w-auto">
-              <ArrowLeftRight className="h-4 w-4" /> Trade {token.symbol}
-            </GlassButton>
-          </Link>
+          <GlassButton className="w-full sm:w-auto" onClick={() => router.push(tradeHref)}>
+            <ArrowLeftRight className="h-4 w-4" /> Trade {token.symbol}
+          </GlassButton>
         </div>
       </GlassCard>
 
