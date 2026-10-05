@@ -590,28 +590,61 @@ async function curveSwapVolume(
   let tradedLastHour = false;
   const txs = await mapLimit(day, 6, async (row) => {
     try {
-      const tx = await connection.getParsedTransaction(row.signature, {
-        maxSupportedTransactionVersion: 1,
-      });
+      const tx = await rawParsedTransaction(connection, row.signature);
       return { row, tx };
     } catch (err) {
       logger.debug({ err: (err as Error).message }, "curve swap tx skipped");
       return { row, tx: null };
     }
   });
+  let missed = 0;
   for (const item of txs) {
     const tx = item?.tx;
-    if (!tx?.meta || tx.meta.err) continue;
+    if (!tx?.meta) {
+      missed += 1;
+      continue;
+    }
+    if (tx.meta.err) continue;
     parsed += 1;
     const logs = (tx.meta.logMessages ?? []).join(" ");
     if (!logs.includes("Instruction: Swap")) continue;
     if ((item.row.blockTime ?? 0) >= now - 3_600) tradedLastHour = true;
     volumeQuote += quoteMoved(tx.meta, quoteMint);
   }
-  if (day.length > 0 && parsed === 0) {
-    logger.warn({ pool: pool.toBase58(), signatures: day.length }, "curve swap scan parsed nothing");
+  if (day.length > 0 && (parsed === 0 || missed > 0)) {
+    logger.warn(
+      { pool: pool.toBase58(), signatures: day.length, parsed, missed },
+      "curve swap scan was incomplete",
+    );
   }
-  return { volumeQuote, known: parsed > 0 || day.length === 0, tradedLastHour };
+  return {
+    volumeQuote,
+    known: missed === 0 && (parsed > 0 || day.length === 0),
+    tradedLastHour,
+  };
+}
+
+async function rawParsedTransaction(
+  connection: Connection,
+  signature: string,
+): Promise<{ meta?: { err: unknown; logMessages?: string[] | null; preTokenBalances?: TokenBalanceRow[] | null; postTokenBalances?: TokenBalanceRow[] | null } | null } | null> {
+  const res = await fetch(connection.rpcEndpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "getTransaction",
+      params: [signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 1 }],
+    }),
+    signal: AbortSignal.timeout(12_000),
+  });
+  const json = (await res.json()) as {
+    error?: { message?: string };
+    result?: { meta?: { err: unknown; logMessages?: string[] | null; preTokenBalances?: TokenBalanceRow[] | null; postTokenBalances?: TokenBalanceRow[] | null } | null } | null;
+  };
+  if (json.error) throw new Error(json.error.message ?? "getTransaction failed");
+  return json.result ?? null;
 }
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
