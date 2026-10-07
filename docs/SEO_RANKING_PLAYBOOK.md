@@ -25,8 +25,8 @@ Sturm and Shaw spent most of the hour on hacks that rank in hours and then vanis
 | Title | The H1, which is the query, plus the brand. |
 | URL | Learn and guide slugs are the H1. Money URLs keep their existing paths (`/`, `/launchpad`, `/swap/...`). |
 | H1 | The query, not a slogan that disagrees with the title. |
-| First sentence | The exact query, in the first sentence of the first paragraph. |
-| Citation | That opening is 20–30 words when we write it, stored as `citationSnippet`, rendered in `.seo-citation` with `id="answer"`. |
+| First sentence | The exact query, then the page's own next sentence. Nothing generic is inserted in front of a guide that already explains the topic. |
+| Citation | The first 20–30 words of that opening, stored as `citationSnippet`, rendered in `.seo-citation` with `id="answer"`. |
 
 Code: `packages/seo/src/ranking.ts` (`ensureOpening`, `buildCitationSentence`). It runs at the end of `enrichAllPages`. Token, pair, and hub templates in `packages/seo/src/content-engine.ts` already open on their H1, so the pass does not stack a second sentence on top of them.
 

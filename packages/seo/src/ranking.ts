@@ -221,9 +221,11 @@ function ensureOpening(page: SeoPageConfig): boolean {
     page.keywords = [query, ...page.keywords].slice(0, 12);
   }
   if (!openingHasQuery(page.intro, query)) {
-    const sentence = buildCitationSentence(query, page.path);
-    page.intro = `${sentence}\n\n${page.intro}`;
-    page.citationSnippet = wordCount(sentence) >= 20 ? sentence : deriveCitationSnippet(page.intro);
+    const parts = page.intro.split(/\n\n+/);
+    const first = (parts[0] ?? "").trim();
+    parts[0] = `${query}. ${first}`;
+    page.intro = parts.join("\n\n");
+    page.citationSnippet = deriveCitationSnippet(page.intro);
     return true;
   }
   page.citationSnippet = deriveCitationSnippet(page.intro);
@@ -534,5 +536,24 @@ export function rankingSelfCheck(): void {
   if (stats.contextualLinks < 1) throw new Error("expected a contextual link");
   if (!openingHasQuery(guide.intro, "How to set slippage tolerance")) {
     throw new Error("guide opening lost its query");
+  }
+
+  const bare: SeoPageConfig = {
+    ...guide,
+    id: "bare",
+    path: "/learn/guides/how-to-launch-a-token-on-xauconnect",
+    h1: "How to launch a token on XAUConnect",
+    title: "How to launch a token on XAUConnect | XAUConnect",
+    intro:
+      "XAUConnect’s launchpad is for teams that want a public, non-custodial listing surface next to the same swap aggregator traders already use.",
+    sections: [{ heading: "Liquidity is the product", body: "A launch without locked liquidity is hard to trust." }],
+    faqs: [{ question: "Does XAUConnect endorse launches?", answer: "No. Listing is tooling." }],
+  };
+  applyRankingSystem([bare]);
+  if (!bare.intro.startsWith("How to launch a token on XAUConnect. XAUConnect")) {
+    throw new Error(`opening was rewritten: ${bare.intro.slice(0, 120)}`);
+  }
+  if (!bare.citationSnippet?.includes("launchpad is for teams")) {
+    throw new Error(`citation dropped the article: ${bare.citationSnippet}`);
   }
 }
