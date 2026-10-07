@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { legacyRedirects } from "./legacy-redirects.mjs";
 
 const monorepoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -21,6 +22,7 @@ const nextConfig = {
   // search and cross-chain-search permutation pages were retired entirely.
   async redirects() {
     return [
+      ...legacyRedirects(),
       {
         source: "/buy/:chainKey/:tokenSlug",
         destination: "/swap/:chainKey/:tokenSlug",

@@ -1,6 +1,32 @@
 import Link from "next/link";
 import { ArrowRight, BookOpen, Coins, Globe, Layers, TrendingUp } from "lucide-react";
 import type { SeoPageConfig } from "@xauconnect/seo";
+import { getAllSeoPages } from "@/lib/seo/pages";
+
+const SWAP_GUIDE_BY_CHAIN: Record<string, string> = {
+  ethereum: "/learn/guides/how-to-swap-tokens-on-ethereum",
+  bsc: "/learn/guides/how-to-swap-tokens-on-bnb-chain",
+  polygon: "/learn/guides/how-to-swap-tokens-on-polygon",
+  arbitrum: "/learn/guides/how-to-swap-tokens-on-arbitrum",
+  base: "/learn/guides/how-to-swap-tokens-on-base",
+  avalanche: "/learn/guides/how-to-swap-tokens-on-avalanche",
+  solana: "/learn/guides/how-to-swap-tokens-on-solana",
+};
+
+/** Old registry paths that 301 or 404. Point the visible link at the live URL. */
+function normalizeRelatedPath(path: string, selfPath: string): string | null {
+  let next = path;
+  const buySell = next.match(/^\/(?:buy|sell)\/([^/]+)(\/.*)?$/);
+  if (buySell) {
+    const chain = buySell[1] ?? "";
+    const rest = buySell[2];
+    next = rest ? `/swap/${chain}${rest}` : (SWAP_GUIDE_BY_CHAIN[chain] ?? `/chains/${chain}`);
+  }
+  const pairHub = next.match(/^\/pairs\/([^/]+)$/);
+  if (pairHub) next = `/swap/${pairHub[1]}`;
+  if (!next.startsWith("/") || next === selfPath) return null;
+  return next;
+}
 
 const CATEGORY_META = {
   token: { label: "Tokens", icon: Coins },
@@ -11,13 +37,54 @@ const CATEGORY_META = {
   hub: { label: "Platform", icon: Layers },
 } as const;
 
+function crawlLinks(page: SeoPageConfig) {
+  if (!page.chainKey) return [];
+  if (page.kind !== "chain" && page.kind !== "swap-hub" && page.kind !== "trade" && page.kind !== "discover" && page.kind !== "launch") {
+    return [];
+  }
+  const pages = getAllSeoPages();
+  const tokens = pages
+    .filter((p) => p.kind === "swap-token" && p.chainKey === page.chainKey)
+    .slice(0, 8);
+  const routes = pages
+    .filter((p) => p.kind === "cross-chain-swap" && p.fromChainKey === page.chainKey)
+    .slice(0, 6);
+  return [
+    ...tokens.map((p) => ({
+      path: p.path,
+      title: p.h1,
+      description: "",
+      category: "token" as const,
+    })),
+    ...routes.map((p) => ({
+      path: p.path,
+      title: p.h1,
+      description: "",
+      category: "pair" as const,
+    })),
+  ];
+}
+
 function groupLinks(page: SeoPageConfig) {
-  const links = page.relatedLinks ?? page.relatedPaths.map((path) => ({
+  const base = (page.relatedLinks ?? page.relatedPaths.map((path) => ({
     path,
     title: path.replace(/^\//, "").replace(/\//g, " · "),
     description: "",
     category: "hub" as const,
-  }));
+  })))
+    .map((link) => {
+      const path = normalizeRelatedPath(link.path, page.path);
+      return path ? { ...link, path } : null;
+    })
+    .filter((link): link is NonNullable<typeof link> => link !== null);
+
+  const seen = new Set(base.map((link) => link.path));
+  const links = [...base];
+  for (const link of crawlLinks(page)) {
+    if (seen.has(link.path) || link.path === page.path) continue;
+    seen.add(link.path);
+    links.push(link);
+  }
 
   const groups = new Map<string, typeof links>();
   for (const link of links) {
@@ -66,7 +133,7 @@ export function SeoExploreNext({ page }: { page: SeoPageConfig }) {
                 {meta.label}
               </div>
               <ul className="glass divide-y divide-white/60 rounded-glass">
-                {links.slice(0, 4).map((link) => (
+                {links.slice(0, 8).map((link) => (
                   <li key={link.path}>
                     <Link href={link.path} className="group block p-4 transition hover:bg-gold/[0.06]">
                       <div className="flex items-start justify-between gap-3">

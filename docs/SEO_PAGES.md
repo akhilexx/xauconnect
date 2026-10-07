@@ -42,7 +42,8 @@ Ranking methods from the Edward Sturm / Whitespark episode, and where they are i
 
 - AI Overviews cite **indexed, snippet-eligible** pages. Schema does not unlock them.
 - Do not stuff “Medium” / “Reddit” into titles or keywords (keyword stuffing + inauthentic mentions).
-- Submit `https://xauconnect.com/sitemap.xml` in Search Console after deploy; request indexing on `/learn` and new guides.
+- Submit only `https://xauconnect.com/sitemap.xml` in Search Console. Do not submit retired files (`tokens.xml`, `cross-chain-search.xml`, `buy.xml`, `sell.xml`). Those doorway URLs 301 to the live chain hub; the deploy deletes any leftover sitemap file.
+- Request indexing on `/`, `/launchpad`, `/learn`, and new guides after a full SEO deploy. The other sitemap URLs are discovered from that index plus the footer directory.
 - Private GitHub does not pass crawlable E-E-A-T. Prefer a public contracts/docs repo.
 
 ## Verification

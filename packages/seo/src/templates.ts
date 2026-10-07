@@ -7,6 +7,16 @@ function faqs(items: [string, string][]): SeoFaq[] {
   return items.map(([question, answer]) => ({ question, answer }));
 }
 
+const SWAP_GUIDE_BY_CHAIN: Record<string, string> = {
+  ethereum: "/learn/guides/how-to-swap-tokens-on-ethereum",
+  bsc: "/learn/guides/how-to-swap-tokens-on-bnb-chain",
+  polygon: "/learn/guides/how-to-swap-tokens-on-polygon",
+  arbitrum: "/learn/guides/how-to-swap-tokens-on-arbitrum",
+  base: "/learn/guides/how-to-swap-tokens-on-base",
+  avalanche: "/learn/guides/how-to-swap-tokens-on-avalanche",
+  solana: "/learn/guides/how-to-swap-tokens-on-solana",
+};
+
 function disclaimer(): SeoSection {
   return {
     heading: "Risk disclaimer",
@@ -66,7 +76,11 @@ export function swapHubPage(chain: ChainInfo): Omit<SeoPageConfig, "id" | "kind"
       ["What slippage should I use?", "For liquid pairs 0.5% is typical. Volatile memecoins may need 1–3% depending on pool depth."],
       ["Where do quotes come from?", `${BRAND_NAME} aggregates on-chain liquidity and third-party routing APIs where configured for ${chain.name}.`],
     ]),
-    relatedPaths: [`/chains/${chain.key}`, `/buy/${chain.key}`, `/meme-coins/${chain.key}`],
+    relatedPaths: [
+      `/chains/${chain.key}`,
+      SWAP_GUIDE_BY_CHAIN[chain.key] ?? `/learn`,
+      `/meme-coins/${chain.key}`,
+    ],
     keywords: [`swap ${chain.key}`, `${chain.name} token swap`, BRAND_NAME],
   };
 }
@@ -205,7 +219,11 @@ export function tradeHubPage(chain: ChainInfo): Omit<SeoPageConfig, "id" | "kind
     faqs: faqs([
       [`How is trade different from swap?`, "Same engine — this hub emphasizes active trading workflows and pair discovery on " + chain.name + "."],
     ]),
-    relatedPaths: [`/swap/${chain.key}`, `/pairs/${chain.key}`, `/discover/${chain.key}`],
+    relatedPaths: [
+      `/swap/${chain.key}`,
+      SWAP_GUIDE_BY_CHAIN[chain.key] ?? `/learn`,
+      `/discover/${chain.key}`,
+    ],
     keywords: [`trade ${chain.key}`, `${chain.name} DEX`, BRAND_NAME],
   };
 }

@@ -1,7 +1,7 @@
 /**
  * Write static sitemap XML files to apps/web/public for reliable serving.
  */
-import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, existsSync, readdirSync, unlinkSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadPages, SITE_URL, type SeoPageConfig } from "@xauconnect/seo";
@@ -123,6 +123,14 @@ export function generateStaticSitemaps(): void {
   }
 
   writeFileSync(join(PUBLIC, "sitemap.xml"), indexXml(Object.keys(groups), lastmod) + "\n", "utf8");
+
+  const keep = new Set(Object.keys(groups).map((name) => `${name}.xml`));
+  for (const file of readdirSync(SITEMAP_DIR)) {
+    if (file.endsWith(".xml") && !keep.has(file)) {
+      unlinkSync(join(SITEMAP_DIR, file));
+      log("sitemap prune", file);
+    }
+  }
 
   const robots = `User-agent: *
 Allow: /

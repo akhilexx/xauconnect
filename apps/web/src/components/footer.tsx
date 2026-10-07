@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { BrandMark } from "./brand-logo";
+import { SiteDirectory } from "./site-directory";
 
 const NAV_LINKS = [
   { href: "/launchpad", label: "Launchpad" },
@@ -41,7 +42,7 @@ export function Footer() {
 
           <nav
             aria-label="Footer"
-            className="hidden flex-wrap gap-x-4 gap-y-2 text-sm font-medium text-ink-muted md:flex"
+            className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium text-ink-muted"
           >
             {NAV_LINKS.map(({ href, label }) => (
               <Link key={href} href={href} className="transition-colors hover:text-ink">
@@ -50,6 +51,8 @@ export function Footer() {
             ))}
           </nav>
         </div>
+
+        <SiteDirectory />
 
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-ink-faint">
           {LEGAL_LINKS.map(({ href, label }) => (

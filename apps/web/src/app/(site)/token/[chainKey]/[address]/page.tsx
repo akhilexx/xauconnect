@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { TokenDetail } from "@/components/discover/token-detail";
 import { SeoPageShell } from "@/components/seo/seo-page-shell";
 import { findPage } from "@/lib/seo/route-factory";
@@ -18,6 +19,11 @@ export async function generateStaticParams() {
   }));
 }
 
+/** Retired tokens.xml used zero-padded placeholders and XAU000… mints. */
+function isPlaceholderAddress(address: string): boolean {
+  return /^0x0{30}[0-9a-f]*$/i.test(address) || /^XAU0{8}[0-9a-f]*$/i.test(address);
+}
+
 function matchTokenPage(chainKey: string, address: string) {
   return findPage(
     "token-deep",
@@ -31,6 +37,7 @@ export async function generateMetadata({
   params: Promise<{ chainKey: string; address: string }>;
 }): Promise<Metadata> {
   const { chainKey, address } = await params;
+  if (isPlaceholderAddress(address)) return { title: "Not found", robots: { index: false, follow: false } };
   const page = matchTokenPage(chainKey, address);
   if (page) return seoMetadata(page);
   return {
@@ -45,6 +52,7 @@ export default async function TokenPage({
   params: Promise<{ chainKey: string; address: string }>;
 }) {
   const { chainKey, address } = await params;
+  if (isPlaceholderAddress(address)) notFound();
   const page = matchTokenPage(chainKey, address);
 
   if (page) {

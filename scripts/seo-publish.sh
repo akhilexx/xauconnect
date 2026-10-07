@@ -40,9 +40,21 @@ fi
 INDEXNOW_KEY="${INDEXNOW_KEY:-xauconnect-seo-key}"
 SITEMAP_URL="${SITE}/sitemap.xml"
 echo "==> IndexNow ping"
+INDEXNOW_BODY="$(node --input-type=module -e "
+  import { readFileSync } from 'node:fs';
+  const root = process.argv[1];
+  const files = ['core','learn','chains','swap'].map((n) => root + '/apps/web/public/sitemaps/' + n + '.xml');
+  const locs = [];
+  for (const file of files) {
+    const text = readFileSync(file, 'utf8');
+    for (const match of text.matchAll(/<loc>([^<]+)<\\/loc>/g)) locs.push(match[1]);
+  }
+  const urlList = [...new Set(locs)].slice(0, 200);
+  process.stdout.write(JSON.stringify({ host: process.argv[2], key: process.argv[3], urlList }));
+" "$ROOT" "$DOMAIN" "$INDEXNOW_KEY")"
 curl -s -X POST "https://api.indexnow.org/indexnow" \
   -H "Content-Type: application/json" \
-  --data "{\"host\":\"${DOMAIN}\",\"key\":\"${INDEXNOW_KEY}\",\"urlList\":[\"${SITE}/\",\"${SITEMAP_URL}\"]}" \
+  --data "$INDEXNOW_BODY" \
   || echo "IndexNow ping failed (non-fatal)"
 
 echo "==> verify sitemap index"

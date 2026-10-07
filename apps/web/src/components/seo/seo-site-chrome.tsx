@@ -3,6 +3,7 @@ import { BRAND_NAME } from "@xauconnect/utils";
 import { BrandGlyph } from "@/components/brand-glyph";
 import { BrandMark } from "@/components/brand-logo";
 import { DESKTOP_NAV } from "@/lib/site-nav";
+import { SiteDirectory } from "@/components/site-directory";
 
 const FOOTER_LINKS = [
   { href: "/launchpad", label: "Launchpad" },
@@ -126,7 +127,7 @@ export function SeoSiteChrome({ children }: { children: React.ReactNode }) {
               </Link>
               <nav
                 aria-label="Footer"
-                className="hidden flex-wrap gap-x-4 gap-y-2 text-sm font-medium text-ink-muted md:flex"
+                className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium text-ink-muted"
               >
                 {FOOTER_LINKS.map(({ href, label }) => (
                   <Link key={href} href={href} className="transition-colors hover:text-ink">
@@ -135,6 +136,7 @@ export function SeoSiteChrome({ children }: { children: React.ReactNode }) {
                 ))}
               </nav>
             </div>
+            <SiteDirectory />
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-ink-faint">
               {LEGAL_LINKS.map(({ href, label }) => (
                 <Link

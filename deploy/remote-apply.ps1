@@ -7,6 +7,25 @@ Set-Location C:\xauconnect
 tar -xzf deploy.tgz
 Remove-Item deploy.tgz -Force
 
+# Deploys extract over the tree and do not delete files that left the repo.
+# Retired sitemaps (tokens.xml, cross-chain-search.xml) kept feeding Google
+# thousands of doorway URLs. Keep only the sitemaps the generator writes.
+$sitemapDir = 'C:\xauconnect\apps\web\public\sitemaps'
+$keepSitemaps = @(
+  'chains.xml',
+  'swap.xml',
+  'cross-chain.xml',
+  'meme.xml',
+  'learn.xml',
+  'search.xml',
+  'core.xml'
+)
+if (Test-Path $sitemapDir) {
+  Get-ChildItem $sitemapDir -Filter *.xml |
+    Where-Object { $keepSitemaps -notcontains $_.Name } |
+    Remove-Item -Force
+}
+
 $nssm = 'C:\tools\nssm\nssm.exe'
 # Unlock Prisma's query engine DLL before generate (backend holds it while running).
 & $nssm stop xauconnect-backend
