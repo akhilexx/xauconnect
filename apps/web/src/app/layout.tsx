@@ -32,7 +32,16 @@ export const metadata: Metadata = {
   },
   description: BRAND_DESCRIPTION,
   applicationName: BRAND_NAME,
-  keywords: ["Meteora", "token launchpad", "Gold Curve", "bonding curve", "Solana", "DAMM v2", BRAND_NAME],
+  keywords: [
+    "launch a token on Meteora",
+    "Meteora launchpad",
+    "Gold Curve",
+    "bonding curve",
+    "DEX aggregator",
+    "Solana",
+    "DAMM v2",
+    BRAND_NAME,
+  ],
   icons: {
     icon: [
       { url: BRAND_LOGO.icon32, sizes: "32x32", type: "image/png" },

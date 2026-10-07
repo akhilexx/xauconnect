@@ -1,6 +1,7 @@
 import type { SeoPageConfig } from "./types.js";
 import { getChainByKey } from "@xauconnect/utils";
 import { applyRichContent } from "./content-engine.js";
+import { applyRankingSystem, type RankingStats } from "./ranking.js";
 
 export type SeoRelatedLink = {
   path: string;
@@ -134,9 +135,10 @@ export function buildEnrichContext(pages: SeoPageConfig[]): EnrichContext {
   };
 }
 
-export function enrichAllPages(pages: SeoPageConfig[]): void {
+export function enrichAllPages(pages: SeoPageConfig[]): RankingStats {
   const ctx = buildEnrichContext(pages);
   for (const page of pages) {
     enrichPage(page, ctx);
   }
+  return applyRankingSystem(pages);
 }

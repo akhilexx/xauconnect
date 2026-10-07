@@ -25,7 +25,7 @@ export function sitePageMetadata(opts: {
           url: BRAND_LOGO.og,
           width: BRAND_LOGO.ogWidth,
           height: BRAND_LOGO.ogHeight,
-          alt: `${BRAND_NAME} — The Gold Standard of Liquidity.`,
+          alt: `${opts.title} — ${BRAND_NAME}`,
         },
       ],
     },
@@ -41,12 +41,12 @@ export function sitePageMetadata(opts: {
 export const HOME_METADATA: Metadata = {
   title: "Launch a token on Meteora",
   description:
-    "XAUConnect is a Meteora launchpad. Create a Gold Curve token — Fair, Shield, or Distribute — and let traders buy it immediately. At 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market.",
+    "Launch a token on Meteora with XAUConnect’s Gold Curve — Fair, Shield, or Distribute — and traders can buy it immediately on Solana. At exactly 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market.",
   alternates: { canonical: SITE_URL },
   openGraph: {
     title: `${BRAND_NAME} — Launch a token on Meteora`,
     description:
-      "Create a Gold Curve token on Meteora. Fair, Shield, or Distribute. Traders buy immediately, then the pool graduates into a locked DAMM v2 market at 10 SOL or 750 USDC.",
+      "Launch a token on Meteora with XAUConnect’s Gold Curve — Fair, Shield, or Distribute — and traders can buy it immediately on Solana.",
     url: SITE_URL,
     type: "website",
     siteName: BRAND_NAME,
@@ -55,7 +55,7 @@ export const HOME_METADATA: Metadata = {
         url: BRAND_LOGO.og,
         width: BRAND_LOGO.ogWidth,
         height: BRAND_LOGO.ogHeight,
-        alt: `${BRAND_NAME} — The Gold Standard of Liquidity.`,
+        alt: `Launch a token on Meteora — ${BRAND_NAME}`,
       },
     ],
   },
@@ -63,7 +63,7 @@ export const HOME_METADATA: Metadata = {
     card: "summary_large_image",
     title: `${BRAND_NAME} — Launch a token on Meteora`,
     description:
-      "Create a Gold Curve token on Meteora. Fair, Shield, or Distribute. Traders buy immediately, then the pool graduates into a locked DAMM v2 market at 10 SOL or 750 USDC.",
+      "Launch a token on Meteora with XAUConnect’s Gold Curve — Fair, Shield, or Distribute — and traders can buy it immediately on Solana.",
     images: [BRAND_LOGO.og],
   },
 };

@@ -3,9 +3,9 @@ import { LaunchpadScreen } from "@/components/launchpad/launchpad-screen";
 import { sitePageMetadata } from "@/lib/seo/site-metadata";
 
 export const metadata: Metadata = sitePageMetadata({
-  title: "Launch on Meteora",
+  title: "Launch a Gold Curve on Meteora",
   description:
-    "Create a Gold Curve token on Meteora’s Dynamic Bonding Curve. Fair, Shield, or Distribute. Traders buy immediately, then the pool graduates into a locked DAMM v2 market at 10 SOL or 750 USDC.",
+    "Launch a Gold Curve on Meteora with XAUConnect — Fair, Shield, or Distribute — and traders can buy your token immediately on Solana. At exactly 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market.",
   path: "/launchpad",
 });
 

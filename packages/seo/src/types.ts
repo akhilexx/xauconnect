@@ -82,6 +82,10 @@ export const SeoPageConfigSchema = z.object({
   priority: z.number().optional(),
   noindex: z.boolean().optional(),
   enriched: z.boolean().optional(),
+  /** Query this URL should win: title, slug, H1, and the opening sentence. */
+  primaryQuery: z.string().optional(),
+  /** 20–30 word sentence copied from the opening, for AI retrieval checks. */
+  citationSnippet: z.string().optional(),
   relatedLinks: z
     .array(
       z.object({

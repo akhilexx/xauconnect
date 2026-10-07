@@ -6,10 +6,13 @@ export function PageHeader({
   children,
   description,
   className,
+  citation = false,
 }: {
   children: ReactNode;
   description?: string;
   className?: string;
+  /** Marks the opening sentence for retrieval and AI overview citations. */
+  citation?: boolean;
 }) {
   return (
     <header className={cn("min-w-0", className)}>
@@ -17,7 +20,15 @@ export function PageHeader({
         {children}
       </h1>
       {description ? (
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-muted">{description}</p>
+        <p
+          id={citation ? "answer" : undefined}
+          className={cn(
+            "mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-muted",
+            citation && "seo-citation",
+          )}
+        >
+          {description}
+        </p>
       ) : null}
     </header>
   );

@@ -63,7 +63,9 @@ export function SeoLearnHub({
         <h1 className="font-display text-[1.65rem] font-extrabold leading-[1.15] tracking-tight text-ink sm:text-3xl">
           {title}
         </h1>
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-muted">{description}</p>
+        <p id="answer" className="seo-citation mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-muted">
+          {description}
+        </p>
         <p className="mt-2 text-sm text-ink-muted">
           {pages.length} articles
           <span className="mx-1.5 text-ink-faint">·</span>

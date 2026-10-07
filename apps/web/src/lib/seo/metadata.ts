@@ -147,6 +147,15 @@ export function webPageJsonLd(page: SeoPageConfig): object {
     name: page.h1,
     description: page.description,
     url: `${SITE_URL}${page.path}`,
+    ...(page.citationSnippet
+      ? {
+          abstract: page.citationSnippet,
+          speakable: {
+            "@type": "SpeakableSpecification",
+            cssSelector: [".seo-citation"],
+          },
+        }
+      : {}),
   };
 }
 

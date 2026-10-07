@@ -4,9 +4,16 @@
 import { loadPages } from "../../packages/seo/src/registry.ts";
 import { MIN_BODY_WORDS } from "../../packages/seo/src/content-expand.ts";
 import { wordCount } from "../../packages/seo/src/content-blocks.ts";
+import {
+  openingHasQuery,
+  primaryQuery,
+  rankingSelfCheck,
+  stripMd,
+} from "../../packages/seo/src/ranking.ts";
 import { log } from "./lib/env.js";
 
 export function validateSeoContent(): void {
+  rankingSelfCheck();
   const pages = loadPages();
   if (!pages.length) {
     log("validate-seo", "no pages");
@@ -78,6 +85,33 @@ export function validateSeoContent(): void {
       console.error(`FAIL: duplicate article ${field} — ${worst?.[1]} pages share "${worst?.[0]?.slice(0, 80)}"`);
       process.exit(1);
     }
+  }
+
+  let placementGaps = 0;
+  let citationGaps = 0;
+  let contextualLinks = 0;
+  const gapSamples: string[] = [];
+  for (const page of pages) {
+    if (page.noindex) continue;
+    const query = page.primaryQuery ?? primaryQuery(page);
+    if (!openingHasQuery(page.intro, query)) {
+      placementGaps++;
+      if (gapSamples.length < 8) gapSamples.push(`${page.path} :: ${query}`);
+    }
+    const snippet = page.citationSnippet ?? "";
+    const snippetWords = snippet.split(/\s+/).filter(Boolean).length;
+    const visible = stripMd(page.intro);
+    if (snippetWords < 20 || snippetWords > 30 || !visible.includes(snippet)) citationGaps++;
+    const body = [page.intro, ...page.sections.map((s) => s.body)].join("\n");
+    if (/\]\(\//.test(body)) contextualLinks++;
+  }
+  log("validate-seo", `opening placement gaps: ${placementGaps}`);
+  log("validate-seo", `citation snippet gaps: ${citationGaps}`);
+  log("validate-seo", `pages with contextual internal links: ${contextualLinks}`);
+  if (placementGaps > 0 || citationGaps > 0) {
+    for (const sample of gapSamples) console.error(`  placement: ${sample}`);
+    console.error("FAIL: ranking placement — re-run pnpm seo:enrich");
+    process.exit(1);
   }
 }
 

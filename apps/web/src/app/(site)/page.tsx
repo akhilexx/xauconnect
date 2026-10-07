@@ -9,7 +9,7 @@ export default function HomePage() {
   return (
     <>
       <HomeJsonLd />
-      <LaunchpadScreen />
+      <LaunchpadScreen variant="home" />
     </>
   );
 }

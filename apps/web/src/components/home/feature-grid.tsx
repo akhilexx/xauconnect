@@ -71,7 +71,7 @@ export function FeatureGrid() {
               {/* eslint-disable-next-line @next/next/no-img-element -- local brand asset */}
               <img
                 src={icon}
-                alt=""
+                alt={`${title} on XAUConnect`}
                 width={56}
                 height={56}
                 className="h-14 w-14 object-contain drop-shadow-[0_6px_14px_rgba(255,170,0,0.22)]"

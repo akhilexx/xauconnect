@@ -38,6 +38,8 @@ After every Learn/content change you **must** use `--seo` (and `SEO_REFRESH=1` i
 
 ## Google / AEO notes
 
+Ranking methods from the Edward Sturm / Whitespark episode, and where they are implemented, live in [SEO_RANKING_PLAYBOOK.md](./SEO_RANKING_PLAYBOOK.md).
+
 - AI Overviews cite **indexed, snippet-eligible** pages. Schema does not unlock them.
 - Do not stuff “Medium” / “Reddit” into titles or keywords (keyword stuffing + inauthentic mentions).
 - Submit `https://xauconnect.com/sitemap.xml` in Search Console after deploy; request indexing on `/learn` and new guides.

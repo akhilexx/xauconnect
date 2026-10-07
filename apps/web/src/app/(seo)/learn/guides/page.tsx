@@ -8,7 +8,7 @@ export const dynamic = "force-static";
 export const metadata: Metadata = sitePageMetadata({
   title: "How-to guides",
   description:
-    "Step-by-step XAUConnect guides: swap on Ethereum, Solana, Base and more; ETH→USDC and other pairs; create ERC-20/SPL tokens; add liquidity; WalletConnect; fees.",
+    "How-to guides for swapping tokens, bridging across chains, generating an ERC-20, adding locked liquidity, and placing a first test swap on XAUConnect.",
   path: "/learn/guides",
 });
 
@@ -20,7 +20,7 @@ export default function LearnGuidesIndexPage() {
   return (
     <SeoLearnHub
       title="How-to guides"
-      description="Practical walkthroughs: swap tokens on each supported chain, move assets across chains, generate an ERC-20 without coding, add locked liquidity, then make the first test swap."
+      description="How-to guides for swapping tokens, bridging across chains, generating an ERC-20, adding locked liquidity, and placing a first test swap on XAUConnect."
       path="/learn/guides"
       pages={pages}
       sibling={{ href: "/learn", label: "Concept library →" }}

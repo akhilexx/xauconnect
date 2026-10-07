@@ -250,6 +250,11 @@ export const PRODUCT_LEARN_CONTENT: Record<string, RichContent> = {
       "XAUConnect’s launchpad is for teams that want a public, non-custodial listing surface next to the same swap aggregator traders already use — not a guaranteed “fair launch” halo and not a promise that anyone will buy the token. If you cannot explain the contract permissions, the liquidity plan, and the chain you are launching on in one sitting, you are not ready to press deploy.\n\nThis guide is written for builders using the Launchpad flow: what you must prepare, what the UI collects, and how traders will interrogate you after the token appears on Discover.",
     sections: [
       {
+        heading: "Solana uses a Gold Curve on Meteora",
+        body:
+          "On Solana, launch a token on Meteora with a Gold Curve on Meteora. Pick Fair, Shield, or Distribute, connect a Solana wallet, and sign one create transaction. Traders can buy immediately. At 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market.\n\nThat path is not the EVM TokenFactory wizard. Do not send an SPL mint through an EVM form, and do not expect a Meteora curve on Base or Ethereum. After the transaction confirms, publish the mint address — the ticker is not the identity — and the token can appear on Discover.",
+      },
+      {
         heading: "Pick a chain like an operator, not a mascot",
         body:
           "Ethereum mainnet gives you the deepest stable pools later and the most expensive failed experiments. Base, Arbitrum, and BNB Chain are where most small launches actually live because gas lets you iterate. Solana is a different token program (SPL/Token-2022) with different wallet UX.\n\nLaunching on three chains at once multiplies bridged-ticker confusion. Start with one canonical mint/contract and bridge later if you must.",

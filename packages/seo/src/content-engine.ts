@@ -120,10 +120,12 @@ function buildTokenContent(page: SeoPageConfig): RichContent {
   const isMeme = page.kind === "meme-token" || token?.category === "meme";
   const marketSentence = marketSummarySentence(sym, page.marketData);
 
+  const verb = page.kind === "buy" ? "Buy" : page.kind === "sell" ? "Sell" : "Swap";
+  const mark = addrShort ? ` (${addrShort})` : "";
   const lead =
     page.kind === "meme-token"
-      ? `**${name} (${sym})** is traded on ${facts.name} as a high-volatility, community-driven asset.`
-      : `**${name} (${sym})** on ${facts.name}.`;
+      ? `Swap **${sym}** meme coin on ${facts.name}${mark} by comparing pool depth, the route, and the minimum you receive before your wallet signs on ${BRAND_NAME}.`
+      : `${verb} **${name} (${sym})** on ${facts.name}${mark} by comparing live routes, fees, and the minimum you receive before your wallet signs on ${BRAND_NAME}.`;
 
   const intro = joinParagraphs(
     token
@@ -743,6 +745,27 @@ function buildCrossChainSearchContent(page: SeoPageConfig, seed: number): RichCo
   };
 }
 
+/** Opening sentence matches the hub H1 so the query sits in the title and the first line. */
+function hubLead(page: SeoPageConfig, facts: ReturnType<typeof chainFacts>): string {
+  const name = facts.name;
+  switch (page.kind) {
+    case "chain":
+      return `Trade on ${name} with ${BRAND_NAME} by comparing live DEX routes, gas, and the minimum you receive before your wallet signs.`;
+    case "swap-hub":
+      return `Swap tokens on ${name} by comparing live DEX routes, fees, and the minimum you receive before your wallet signs on ${BRAND_NAME}.`;
+    case "meme-hub":
+      return `Meme coins on ${name} trade through thin, fast pools, so compare the route and the minimum you receive before you sign on ${BRAND_NAME}.`;
+    case "launch":
+      return `Launch tokens on ${name} with the ${BRAND_NAME} launchpad, set supply, and share the contract address traders should swap before they buy it.`;
+    case "discover":
+      return `Discover ${name} tokens from live pools, new launches, and price charts on ${BRAND_NAME} before you pick a contract and swap.`;
+    case "trade":
+      return `Trade crypto on ${name} with aggregated liquidity, live route comparison, transparent fees, and wallet-signed swaps on ${BRAND_NAME} after you compare the quote.`;
+    default:
+      return `${page.h1}. Compare the live quote on ${BRAND_NAME}, then sign from your own wallet.`;
+  }
+}
+
 function buildHubContent(page: SeoPageConfig): RichContent {
   const facts = chainFacts(page.chainKey);
   const profile = chainProfileFor(page.chainKey);
@@ -752,15 +775,7 @@ function buildHubContent(page: SeoPageConfig): RichContent {
     ? profile.summary
     : profile.hub[page.kind as keyof ChainProfile["hub"]] ?? profile.summary;
 
-  const intro = isChainHub
-    ? joinParagraphs(
-        `The **${facts.name} hub** on ${BRAND_NAME} orients you before execution — how the network behaves, where liquidity sits, which wallets to use, and links to token, pair, and cross-chain pages.`,
-        profile.summary,
-      )
-    : joinParagraphs(
-        `The **${facts.name} ${hubLabel}** on ${BRAND_NAME}. ${profile.summary}`,
-        hubAngle,
-      );
+  const intro = joinParagraphs(hubLead(page, facts), isChainHub ? profile.summary : hubAngle);
 
   const sections: SeoSection[] = [
     {
@@ -856,7 +871,8 @@ function buildPairContent(page: SeoPageConfig): RichContent {
   const isStableQuote = quoteTok?.category === "stablecoin" || /USDC|USDT|DAI|USD/i.test(quote);
 
   const intro = joinParagraphs(
-    `The **${base}/${quote}** pair on ${facts.name} lets you trade ${base} directly against ${quote} through decentralized liquidity. ${BRAND_NAME} compares executable paths for this pair across indexed pools and aggregators, including multi-hop routes through ${facts.native} or a major stablecoin when no deep direct pool exists.`,
+    `${base} to ${quote} on ${facts.name} trades through decentralized pools, and ${BRAND_NAME} compares the live minimum you receive before your wallet signs.`,
+    `${BRAND_NAME} compares executable paths for this pair across indexed pools and aggregators, including multi-hop routes through ${facts.native} or a major stablecoin when no deep direct pool exists.`,
     isStableQuote
       ? `Because ${quote} is a stablecoin leg, spreads on a liquid ${base} market should be tight — an unusually wide quote points to thin depth or the wrong token variant rather than the true price.`
       : `With ${quote} as a volatile quote leg, both sides of the pair move, which raises slippage sensitivity — size clips conservatively during fast markets.`,

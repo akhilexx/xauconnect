@@ -5,6 +5,7 @@ import {
   formatSignedPct,
   formatUsdPrice,
   hasMarketData,
+  headingAnchor,
   type SeoPageConfig,
 } from "@xauconnect/seo";
 import { SeoJsonLd } from "./seo-json-ld";
@@ -17,26 +18,48 @@ const LEGAL_SECTION_HEADINGS = new Set(["Risk disclaimer", RISK_HEADING]);
 
 const DEFAULT_RISK_BODY = `${BRAND_NAME} is a non-custodial swap aggregator. Digital assets are volatile and may lose value rapidly. Content on this page is educational and not investment advice. Verify every contract address on the official block explorer before approving a transaction.`;
 
-function headingId(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-}
-
-function renderMarkdownish(text: string): React.ReactNode {
+function renderBold(text: string, keyPrefix: string): React.ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
+    if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
       return (
-        <strong key={i} className="font-semibold text-ink">
+        <strong key={`${keyPrefix}-b-${i}`} className="font-semibold text-ink">
           {part.slice(2, -2)}
         </strong>
       );
     }
-    return part;
+    return <span key={`${keyPrefix}-t-${i}`}>{part}</span>;
   });
+}
+
+function renderMarkdownish(text: string): React.ReactNode {
+  const re = /\[([^\]]+)\]\((\/[^)\s]*)\)/g;
+  const nodes: React.ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let n = 0;
+  while ((match = re.exec(text))) {
+    if (match.index > last) nodes.push(...renderBold(text.slice(last, match.index), `t${n}`));
+    const href = match[2] ?? "";
+    if (href.startsWith("/") && !href.startsWith("//")) {
+      nodes.push(
+        <Link
+          key={`l${match.index}`}
+          href={href}
+          className="font-semibold text-gold-dark underline decoration-gold/40 underline-offset-2 hover:decoration-gold-deep"
+        >
+          {match[1]}
+        </Link>,
+      );
+    } else {
+      nodes.push(...renderBold(match[0], `x${n}`));
+    }
+    last = match.index + match[0].length;
+    n += 1;
+  }
+  if (last < text.length) nodes.push(...renderBold(text.slice(last), "end"));
+  if (nodes.length === 0) return text;
+  return nodes;
 }
 
 function articleSections(page: SeoPageConfig) {
@@ -47,7 +70,7 @@ function ArticleBody({ page }: { page: SeoPageConfig }) {
   return (
     <div className="space-y-10">
       {articleSections(page).map((section) => (
-        <section key={section.heading} id={headingId(section.heading)} className="scroll-mt-28">
+        <section key={section.heading} id={headingAnchor(section.heading)} className="scroll-mt-28">
           <h2 className="font-display text-xl font-bold tracking-tight text-ink sm:text-2xl">
             {section.heading}
           </h2>
@@ -217,7 +240,7 @@ function SwapSection({ page }: { page: SeoPageConfig }) {
 
 function TableOfContents({ page }: { page: SeoPageConfig }) {
   const items = articleSections(page).map((s) => ({
-    id: headingId(s.heading),
+    id: headingAnchor(s.heading),
     label: s.heading,
   }));
   if (page.faqs.length) items.push({ id: "faq", label: FAQ_HEADING });
@@ -294,7 +317,9 @@ export function SeoPageShell({ page }: { page: SeoPageConfig }) {
             ) : null}
             <div className="space-y-3 text-[1.0625rem] leading-[1.75] text-ink-soft">
               {page.intro.split("\n\n").map((para, i) => (
-                <p key={i}>{renderMarkdownish(para)}</p>
+                <p key={i} id={i === 0 ? "answer" : undefined} className={i === 0 ? "seo-citation" : undefined}>
+                  {renderMarkdownish(para)}
+                </p>
               ))}
             </div>
           </header>

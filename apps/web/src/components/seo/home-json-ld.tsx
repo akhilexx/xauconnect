@@ -34,10 +34,18 @@ function homeFaqJsonLd(): object {
     mainEntity: [
       {
         "@type": "Question",
+        name: "What is the best way to launch a token on Meteora?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Launch a token on Meteora with XAUConnect’s Gold Curve — Fair, Shield, or Distribute — and traders can buy it immediately on Solana. At exactly 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market.",
+        },
+      },
+      {
+        "@type": "Question",
         name: `What is ${BRAND_NAME}?`,
         acceptedAnswer: {
           "@type": "Answer",
-          text: `${BRAND_NAME} is a Meteora token launchpad. Creators launch a Gold Curve on Solana — Fair, Shield, or Distribute — and traders buy immediately. At 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market. Swap and liquidity stay available on Ethereum, Solana, BNB Chain, Polygon, Arbitrum, Base, and Avalanche.`,
+          text: `${BRAND_NAME} is a Meteora token launchpad and a non-custodial multi-chain DEX aggregator. Creators launch a Gold Curve on Solana — Fair, Shield, or Distribute — and traders buy immediately. At 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market. Swap and liquidity stay available on Ethereum, Solana, BNB Chain, Polygon, Arbitrum, Base, and Avalanche.`,
         },
       },
       {

@@ -11,11 +11,15 @@ export function enrichAllPagesLocal(): void {
     log("enrich", "no pages — run sync-slug-registry first");
     return;
   }
-  enrichAllPages(pages);
+  const ranking = enrichAllPages(pages);
   savePages(pages);
   const manifest = buildManifest(pages);
   const enriched = pages.filter((p) => p.enriched).length;
   log("enrich", `${enriched}/${manifest.pageCount} pages enriched with article content`);
+  log(
+    "enrich",
+    `ranking openings=${ranking.openingsAdded} fanout=${ranking.fanOutsAdded} contextualLinks=${ranking.contextualLinks} targets=${ranking.targets}`,
+  );
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -1,4 +1,16 @@
 export * from "./enrich.js";
+export {
+  applyRankingSystem,
+  bestWayQuestion,
+  buildCitationSentence,
+  deriveCitationSnippet,
+  headingAnchor,
+  openingHasQuery,
+  primaryQuery,
+  rankingSelfCheck,
+  stripMd,
+} from "./ranking.js";
+export type { RankingStats } from "./ranking.js";
 export * from "./content-blocks.js";
 export * from "./content-engine.js";
 export * from "./content-expand.js";
