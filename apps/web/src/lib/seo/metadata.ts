@@ -38,14 +38,28 @@ export function seoMetadata(page: SeoPageConfig): Metadata {
   };
 }
 
+/** Parents that are real routes. Intermediate crumbs that 404 stay out of the schema. */
+function breadcrumbParent(path: string): { name: string; path: string } | null {
+  if (path.startsWith("/learn/guides/") && path !== "/learn/guides") {
+    return { name: "Guides", path: "/learn/guides" };
+  }
+  if (path.startsWith("/learn/") && path !== "/learn") {
+    return { name: "Learn", path: "/learn" };
+  }
+  const swapToken = path.match(/^\/swap\/([^/]+)\/[^/]+$/);
+  if (swapToken) return { name: "Swap", path: `/swap/${swapToken[1]}` };
+  const meme = path.match(/^\/meme-coins\/([^/]+)\/[^/]+$/);
+  if (meme) return { name: "Meme coins", path: `/meme-coins/${meme[1]}` };
+  const chainish = path.match(/^\/(?:pairs|cross-chain)\/([^/]+)/);
+  if (chainish) return { name: "Chain", path: `/chains/${chainish[1]}` };
+  return null;
+}
+
 export function breadcrumbJsonLd(page: SeoPageConfig): object {
   const items = [{ name: "Home", url: SITE_URL }];
-  const parts = page.path.split("/").filter(Boolean);
-  let acc = "";
-  for (const part of parts) {
-    acc += `/${part}`;
-    items.push({ name: part.replace(/-/g, " "), url: `${SITE_URL}${acc}` });
-  }
+  const parent = breadcrumbParent(page.path);
+  if (parent) items.push({ name: parent.name, url: `${SITE_URL}${parent.path}` });
+  items.push({ name: page.h1, url: `${SITE_URL}${page.path}` });
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -75,7 +89,7 @@ export function faqJsonLd(page: SeoPageConfig): object {
 }
 
 const ARTICLE_PUBLISHED = "2026-01-15";
-const ARTICLE_MODIFIED = "2026-08-14";
+const ARTICLE_MODIFIED = "2026-10-15";
 
 export function articleJsonLd(page: SeoPageConfig): object {
   return {

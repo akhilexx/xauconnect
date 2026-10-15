@@ -13,7 +13,8 @@ export interface RichContent {
   description: string;
 }
 
-export const MIN_BODY_WORDS = 400;
+/** Floor for a real answer plus a limit. Padding up to a quota is not a goal. */
+export const MIN_BODY_WORDS = 120;
 
 function clampDescription(text: string, max = 158): string {
   const clean = text.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();

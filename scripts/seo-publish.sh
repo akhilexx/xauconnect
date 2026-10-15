@@ -38,19 +38,32 @@ else
 fi
 
 INDEXNOW_KEY="${INDEXNOW_KEY:-xauconnect-seo-key}"
-SITEMAP_URL="${SITE}/sitemap.xml"
-echo "==> IndexNow ping"
+echo "==> IndexNow ping (major pages first)"
 INDEXNOW_BODY="$(node --input-type=module -e "
   import { readFileSync } from 'node:fs';
   const root = process.argv[1];
+  const site = 'https://' + process.argv[2];
+  const major = [
+    '/', '/swap', '/buy-crypto', '/sell-crypto', '/launchpad', '/liquidity',
+    '/discover', '/learn', '/learn/guides', '/about', '/developers',
+    '/chains/ethereum', '/chains/solana', '/chains/bsc', '/chains/base',
+    '/chains/arbitrum', '/chains/polygon', '/chains/avalanche',
+    '/learn/what-is-a-dex-aggregator',
+    '/learn/what-is-a-token-approval-and-why-does-it-matter',
+    '/learn/how-do-cross-chain-bridges-work',
+    '/learn/guides/how-to-swap-tokens-on-xauconnect',
+    '/learn/guides/how-to-connect-metamask-to-a-dex',
+  ].map((p) => site + p);
   const files = ['core','learn','chains','swap'].map((n) => root + '/apps/web/public/sitemaps/' + n + '.xml');
-  const locs = [];
+  const locs = [...major];
   for (const file of files) {
-    const text = readFileSync(file, 'utf8');
-    for (const match of text.matchAll(/<loc>([^<]+)<\\/loc>/g)) locs.push(match[1]);
+    try {
+      const text = readFileSync(file, 'utf8');
+      for (const match of text.matchAll(/<loc>([^<]+)<\\/loc>/g)) locs.push(match[1]);
+    } catch { /* sitemap shard may be absent before generate */ }
   }
   const urlList = [...new Set(locs)].slice(0, 200);
-  process.stdout.write(JSON.stringify({ host: process.argv[2], key: process.argv[3], urlList }));
+  process.stdout.write(JSON.stringify({ host: process.argv[2], key: process.argv[3], keyLocation: site + '/' + process.argv[3] + '.txt', urlList }));
 " "$ROOT" "$DOMAIN" "$INDEXNOW_KEY")"
 curl -s -X POST "https://api.indexnow.org/indexnow" \
   -H "Content-Type: application/json" \

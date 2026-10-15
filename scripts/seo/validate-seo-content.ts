@@ -34,6 +34,10 @@ export function validateSeoContent(): void {
     /X-Client-Id/i,
     /POST \/swap\/record/i,
     /·\s*\w+\s*·/,
+    /[—–]/,
+    /\bdelve\b/i,
+    /\bit's important to note\b/i,
+    /\bin today's world\b/i,
   ];
   let bannedHits = 0;
 
@@ -58,7 +62,14 @@ export function validateSeoContent(): void {
   log("validate-seo", `banned SEO/meta phrases: ${bannedHits}`);
 
   if (belowMin > 0) {
-    console.error(`FAIL: ${belowMin} pages below ${MIN_BODY_WORDS} words — re-run pnpm seo:enrich`);
+    log("validate-seo", `${belowMin} pages are under ${MIN_BODY_WORDS} words (allowed: length follows the material)`);
+  }
+  const empty = pages.filter((p) => {
+    const body = [p.intro, ...p.sections.map((s) => s.body)].join(" ");
+    return wordCount(body) < 40;
+  });
+  if (empty.length > 0) {
+    console.error(`FAIL: ${empty.length} pages under 40 words — ${empty[0]?.path}`);
     process.exit(1);
   }
   if (bannedHits > 0) {

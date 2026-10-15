@@ -15,11 +15,7 @@ import {
 import { getLearnContent } from "./learn-content.js";
 import { getChainProfile, type ChainProfile } from "./chain-content.js";
 import { getTokenProfile, resolveTokenProfile } from "./token-content.js";
-import {
-  expandContentToMinimum,
-  MIN_BODY_WORDS,
-  type RichContent,
-} from "./content-expand.js";
+import { type RichContent } from "./content-expand.js";
 import { applyIndexingMetadata } from "./content-unique.js";
 import { isTradingTipPage, tipNumber, TRADING_TIPS } from "./trading-tips.js";
 
@@ -972,27 +968,6 @@ export function generateRichContent(page: SeoPageConfig): RichContent {
   const seed = hashSeed(page.id);
   const tokenKinds = new Set(["swap-token", "buy", "sell", "meme-token", "token-deep"]);
 
-  // Kinds whose content is fully hand-authored or composed from hand-authored
-  // chain/token blocks. These must never be padded with templated expansion
-  // filler — the authored prose is the content.
-  const authoredKinds = new Set([
-    "swap-token",
-    "buy",
-    "sell",
-    "meme-token",
-    "token-deep",
-    "pair",
-    "learn",
-    "guide",
-    "cross-chain-swap",
-    "chain",
-    "swap-hub",
-    "meme-hub",
-    "launch",
-    "discover",
-    "trade",
-  ]);
-
   let content: RichContent;
   if (tokenKinds.has(page.kind)) content = buildTokenContent(page);
   else if (page.kind === "pair") content = buildPairContent(page);
@@ -1001,10 +976,6 @@ export function generateRichContent(page: SeoPageConfig): RichContent {
   else if (page.kind === "cross-chain-swap") content = buildCrossChainSwapContent(page);
   else if (page.kind === "cross-chain-search") content = buildCrossChainSearchContent(page, seed);
   else content = buildHubContent(page);
-
-  if (!authoredKinds.has(page.kind)) {
-    content = expandContentToMinimum(content, page, MIN_BODY_WORDS);
-  }
 
   return content;
 }

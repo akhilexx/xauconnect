@@ -1,6 +1,7 @@
 import type { SeoPageConfig } from "./types.js";
 import { getChainByKey } from "@xauconnect/utils";
 import { applyRichContent } from "./content-engine.js";
+import { applyHumanPage } from "./human-page.js";
 import { applyRankingSystem, type RankingStats } from "./ranking.js";
 
 export type SeoRelatedLink = {
@@ -50,13 +51,27 @@ export function buildRelatedLinks(page: SeoPageConfig, ctx: EnrichContext): SeoR
     }
   }
 
-  if (page.fromChainKey && page.toChainKey) {
-    links.push({
-      path: `/cross-chain/${page.fromChainKey}/${page.toChainKey}`,
-      title: "Cross-chain routes",
-      description: "Browse bridge and swap paths between these networks.",
-      category: "hub",
-    });
+  if (page.fromChainKey) {
+    const origin = ctx.chainHubs.find((p) => p.chainKey === page.fromChainKey);
+    if (origin && origin.path !== page.path) {
+      links.push({
+        path: origin.path,
+        title: `Trade on ${getChainByKey(page.fromChainKey)?.name ?? page.fromChainKey}`,
+        description: "Source chain overview, gas, and wallets.",
+        category: "chain",
+      });
+    }
+  }
+  if (page.toChainKey) {
+    const dest = ctx.chainHubs.find((p) => p.chainKey === page.toChainKey);
+    if (dest && dest.path !== page.path) {
+      links.push({
+        path: dest.path,
+        title: `Arrive on ${getChainByKey(page.toChainKey)?.name ?? page.toChainKey}`,
+        description: "Destination chain overview before you bridge.",
+        category: "chain",
+      });
+    }
   }
 
   for (const g of pick(ctx.guides, 2, seed)) {
@@ -79,13 +94,16 @@ export function buildRelatedLinks(page: SeoPageConfig, ctx: EnrichContext): SeoR
     });
   }
 
-  if (page.chainKey && page.tokenSlug) {
-    links.push({
-      path: `/pairs/${page.chainKey}`,
-      title: "Popular trading pairs",
-      description: "Browse liquid pairs on this network.",
-      category: "pair",
-    });
+  if (page.chainKey && page.kind === "swap-token") {
+    const pair = ctx.topTokensByChain.get(page.chainKey)?.find((p) => p.kind === "pair");
+    if (pair && pair.path !== page.path) {
+      links.push({
+        path: pair.path,
+        title: pair.h1,
+        description: "A liquid pair on this network.",
+        category: "pair",
+      });
+    }
   }
 
   links.push({
@@ -114,6 +132,7 @@ export function buildRelatedLinks(page: SeoPageConfig, ctx: EnrichContext): SeoR
 
 export function enrichPage(page: SeoPageConfig, ctx: EnrichContext): void {
   applyRichContent(page);
+  applyHumanPage(page);
   page.relatedLinks = buildRelatedLinks(page, ctx);
   page.relatedPaths = page.relatedLinks.map((l) => l.path);
   page.enriched = true;

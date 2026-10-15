@@ -64,6 +64,7 @@ export function generateCrossChainEntries(catalog: TokenCatalogEntry[]): CrossCh
 
       for (const tokenIn of originTokens) {
         for (const tokenOut of destTokens) {
+          if (tokenIn.symbol.toUpperCase() === tokenOut.symbol.toUpperCase()) continue;
           const slug = pairSlug(tokenIn.symbol, tokenOut.symbol);
           const key = `${from.key}:${to.key}:${slug}`;
           if (seen.has(key)) continue;
