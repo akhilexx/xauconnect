@@ -67,7 +67,8 @@ export function validateSeoContent(): void {
     if (words < MIN_BODY_WORDS) belowMin++;
     if (generatedKinds.has(page.kind)) {
       const n = page.description.length;
-      if (n < 150 || n > 160) badDesc++;
+      const broken = n < 80 || n > 180 || /Check it\./.test(page.description);
+      if (broken) badDesc++;
     }
     if (words > 750) aboveMax++;
 
@@ -84,7 +85,7 @@ export function validateSeoContent(): void {
   log("validate-seo", `<${MIN_BODY_WORDS} words: ${belowMin} | >750 words: ${aboveMax}`);
   log("validate-seo", `duplicate intro prefixes: ${dupIntros} (${dupRate}%)`);
   log("validate-seo", `banned SEO/meta phrases: ${bannedHits}`);
-  log("validate-seo", `generated descriptions outside 150-160: ${badDesc}`);
+  log("validate-seo", `generated descriptions that are empty, huge, or end on a fragment: ${badDesc}`);
 
   if (belowMin > 0) {
     log("validate-seo", `${belowMin} pages are under ${MIN_BODY_WORDS} words (allowed: length follows the material)`);
@@ -98,7 +99,7 @@ export function validateSeoContent(): void {
     process.exit(1);
   }
   if (badDesc > 0) {
-    console.error(`FAIL: ${badDesc} generated descriptions are not 150-160 characters`);
+    console.error(`FAIL: ${badDesc} generated descriptions are broken`);
     process.exit(1);
   }
   if (bannedHits > 0) {

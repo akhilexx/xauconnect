@@ -640,6 +640,194 @@ const PAGES: Record<string, Block> = {
   },
 };
 
+/** Extra sections: a confusion, a worked case, and one link in a sentence that is already about that page. */
+const MORE: Record<string, Block["sections"]> = {
+  "/learn/what-is-a-dex-aggregator": [
+    {
+      heading: "What people mix it up with",
+      body: "A DEX aggregator is not the exchange that holds your deposit, and it is not a bridge. If you need the path that produced the price, read [how order routing finds the best price](/learn/how-order-routing-finds-the-best-price). If you are ready to trade, open [the swap](/swap) and judge the minimum received, not the headline rate.",
+    },
+  ],
+  "/learn/what-is-a-token-approval-and-why-does-it-matter": [
+    {
+      heading: "The next step after the trade",
+      body: "When the swap is done, clear spenders you will not use again. The steps are in [how to revoke token approvals](/learn/guides/how-to-revoke-token-approvals). Before the first approval on a new ticker, [verify the contract](/learn/guides/how-to-verify-a-token-contract-before-trading).",
+    },
+  ],
+  "/learn/how-do-cross-chain-bridges-work": [
+    {
+      heading: "Do this on a real pair",
+      body: "Pick the source chain, the destination chain, and both contracts. The click-path is [how to bridge assets between chains](/learn/guides/how-to-bridge-assets-between-chains). Stay on one chain when both tokens already pool there. A bridge is the wrong tool for a same-chain swap.",
+    },
+  ],
+  "/learn/slippage-vs-price-impact-what-s-the-difference": [
+    {
+      heading: "Where you set the number",
+      body: "The field is on the quote, and the button shows the minimum that results. [How to set slippage tolerance](/learn/guides/how-to-set-slippage-tolerance) walks through a 0.5 percent case. Widening it to force a thin pool is the mistake. A revert is the setting working.",
+    },
+  ],
+  "/learn/gas-fees-explained-across-chains": [
+    {
+      heading: "Which coin pays it",
+      body: "ETH on Ethereum, Base, and Arbitrum. BNB on chain id 56. POL on Polygon. AVAX on Avalanche C-Chain. SOL on Solana. The platform fee is a separate line. [Trade on Ethereum](/chains/ethereum) is where gas most often exceeds that fee. On [Solana](/chains/solana) the base fee is usually the smaller number.",
+    },
+  ],
+  "/learn/what-is-a-liquidity-pool": [
+    {
+      heading: "Depth is not market cap",
+      body: "A token can show a large market cap and still have a pool too small for your order. The quote is the depth check. If you are providing both sides, the risk that one coin runs away from the other is impermanent loss, which is a different page from this definition. For a swap, open [the swap](/swap) and read the minimum.",
+    },
+  ],
+  "/learn/stablecoins-usdc-vs-usdt-vs-dai": [
+    {
+      heading: "Do not swap them without a reason",
+      body: "USDC to USDT costs a fee to hold the same dollar. Do it when the pool you need is paired with the other ticker. On Ethereum, start from [USDT](/swap/ethereum/usdt-tether-usd) or [USDC](/swap/ethereum/usdc-usd-coin) and confirm the contract before you approve. A bridged copy on another chain is a fourth asset.",
+    },
+  ],
+  "/learn/what-is-mev-and-how-does-sandwiching-work": [
+    {
+      heading: "The setting that limits the damage",
+      body: "Your slippage is the room a sandwich can use. Keep it tight on deep pairs and take a new quote if the trade reverts. The field is explained in [how to set slippage tolerance](/learn/guides/how-to-set-slippage-tolerance). A private route can hide the transaction from the public mempool. It does not change the pool's price impact.",
+    },
+  ],
+  "/learn/meme-coin-risks-every-trader-should-know": [
+    {
+      heading: "The test that is worth more than the chart",
+      body: "Buy a small amount and sell it back. If the sell minimum collapses, the pool or the tax is the product. Match the contract first, using [how to verify a token contract before trading](/learn/guides/how-to-verify-a-token-contract-before-trading). A quote on XAUConnect only means a pool exists.",
+    },
+  ],
+  "/learn/how-order-routing-finds-the-best-price": [
+    {
+      heading: "What you do with the result",
+      body: "The winning route is the one with the higher minimum, even if it has two hops. That idea is the whole of [what a DEX aggregator is](/learn/what-is-a-dex-aggregator). Open [the swap](/swap), compare the routes, and reject the quote if the floor is worse than you will take.",
+    },
+  ],
+  "/learn/guides/how-to-swap-tokens-on-xauconnect": [
+    {
+      heading: "Before you raise the amount",
+      body: "Do one small swap and read the receipt on the explorer. Then increase size. If you are on Ethereum, leave ETH for gas. The chain notes are on [Trade on Ethereum](/chains/ethereum). On Solana, leave SOL and use [Trade on Solana](/chains/solana). An approval, if the wallet asks, is explained in [what a token approval is](/learn/what-is-a-token-approval-and-why-does-it-matter).",
+    },
+  ],
+  "/learn/guides/how-to-connect-metamask-to-a-dex": [
+    {
+      heading: "Connection is not a trade",
+      body: "After MetaMask connects, nothing has moved. The next page is [how to swap tokens on XAUConnect](/learn/guides/how-to-swap-tokens-on-xauconnect). Check chain id 1 for Ethereum, 8453 for Base, 42161 for Arbitrum One, 56 for BNB Chain, 137 for Polygon, and 43114 for Avalanche C-Chain. A seed-phrase prompt is not this connection. Close that tab.",
+    },
+  ],
+  "/learn/guides/how-to-bridge-assets-between-chains": [
+    {
+      heading: "What has to be true before you sign",
+      body: "You can pay gas on the source chain, and you will be able to pay gas on the destination. You have checked both token addresses. If either check fails, stop. The mechanism is [how cross-chain bridges work](/learn/how-do-cross-chain-bridges-work). A same-chain pair does not need this guide.",
+    },
+  ],
+  "/learn/guides/how-to-verify-a-token-contract-before-trading": [
+    {
+      heading: "Then try the exit",
+      body: "A verified contract can still tax sells or sit on a thin pool. After the address matches, quote a small sell as well as a buy. Meme-coin traps are listed in [meme coin risks](/learn/meme-coin-risks-every-trader-should-know). If you already approved the wrong spender, [revoke it](/learn/guides/how-to-revoke-token-approvals).",
+    },
+  ],
+  "/learn/guides/how-to-revoke-token-approvals": [
+    {
+      heading: "Which allowance to clear",
+      body: "Clear unlimited allowances on spenders you do not recognise. Leave the router you are about to use until the swap confirms, or the next transaction will ask for approval again. Why the allowance exists is [what a token approval is](/learn/what-is-a-token-approval-and-why-does-it-matter). This costs gas. It does not return tokens already taken.",
+    },
+  ],
+  "/learn/guides/how-to-set-slippage-tolerance": [
+    {
+      heading: "A 1,000 USDC example",
+      body: "The quote says 1,000 USDC out. At 0.5 percent the floor is about 995 USDC. At 5 percent it is about 950 USDC. The second number is what a sandwich can fill you at on a public mempool. The difference between that guard and the price your size already moved is [slippage versus price impact](/learn/slippage-vs-price-impact-what-s-the-difference).",
+    },
+  ],
+  "/chains/ethereum": [
+    {
+      heading: "Tokens people mean on this chain",
+      body: "ETH for gas and for trading, [WETH](/swap/ethereum/weth-wrapped-ether) when a pool wants an ERC-20, [USDC](/swap/ethereum/usdc-usd-coin) and [USDT](/swap/ethereum/usdt-tether-usd) for dollars, [WBTC](/swap/ethereum/wbtc-wrapped-btc) for a bitcoin claim. None of those contracts are the asset on another chain. Gas versus the platform fee is [gas fees explained across chains](/learn/gas-fees-explained-across-chains).",
+    },
+  ],
+  "/chains/solana": [
+    {
+      heading: "What to open next",
+      body: "Swap [SOL](/swap/solana/sol-solana) from a Solana wallet, not from MetaMask. There is no approval step, which is why [token approvals](/learn/what-is-a-token-approval-and-why-does-it-matter) do not apply here. If the coins you want are on Ethereum, that is a bridge, not this page.",
+    },
+  ],
+  "/chains/bsc": [
+    {
+      heading: "What to open next",
+      body: "Spend native [BNB](/swap/bsc/bnb-eeeeee) on chain id 56, and keep some for gas. A token named BNB on Ethereum is not this balance. USDT is the usual pair. Confirm the contract on BscScan using [how to verify a token contract](/learn/guides/how-to-verify-a-token-contract-before-trading).",
+    },
+  ],
+  "/chains/base": [
+    {
+      heading: "What to open next",
+      body: "Get ETH onto Base before you swap. Mainnet ETH will not pay this gas. If the deep pool is still on [Ethereum](/chains/ethereum), stay there for large size. Cheap L2 gas does not create depth.",
+    },
+  ],
+  "/chains/arbitrum": [
+    {
+      heading: "What to open next",
+      body: "Use Arbitrum One, chain id 42161, not Nova. ETH here is not [Ethereum mainnet ETH](/chains/ethereum). Read the gas line separately from the platform fee, as in [gas fees explained across chains](/learn/gas-fees-explained-across-chains).",
+    },
+  ],
+  "/chains/polygon": [
+    {
+      heading: "What to open next",
+      body: "Keep POL for gas on chain id 137. A token balance with no POL cannot move. Bridged assets are often thinner than the Ethereum listing. If the size is large, compare the quote with [Ethereum](/chains/ethereum) before you bridge in.",
+    },
+  ],
+  "/chains/avalanche": [
+    {
+      heading: "What to open next",
+      body: "C-Chain only, chain id 43114, gas in AVAX. An X-Chain address will not complete the swap. Subnet tokens are out of scope. If you wanted Ethereum liquidity, start on [Ethereum](/chains/ethereum) instead of bridging here first.",
+    },
+  ],
+  "/swap/ethereum/eth-ether": [
+    {
+      heading: "Leave gas, then read the floor",
+      body: "Selling every ETH fails because the fee is also ETH. Leave a remainder. If the pool wants an ERC-20, the asset is [WETH](/swap/ethereum/weth-wrapped-ether), not this balance. Chain id 1 is required. The longer note is [trade on Ethereum](/chains/ethereum).",
+    },
+  ],
+  "/swap/ethereum/usdt-tether-usd": [
+    {
+      heading: "Do not treat every dollar ticker as this token",
+      body: "This contract is Tether's USDT on Ethereum. [USDC](/swap/ethereum/usdc-usd-coin) is Circle. DAI is Maker. The three-way difference is [USDC vs USDT vs DAI](/learn/stablecoins-usdc-vs-usdt-vs-dai). Approve only this address, then [revoke](/learn/guides/how-to-revoke-token-approvals) if you will not trade it again.",
+    },
+  ],
+  "/swap/ethereum/usdc-usd-coin": [
+    {
+      heading: "Native here, something else elsewhere",
+      body: "This is Circle's USDC on Ethereum. USDC on Base is not spent from this balance. If you only needed dollars against ETH, you are in the right place. If you needed [USDT](/swap/ethereum/usdt-tether-usd), that is a different issuer and a different contract.",
+    },
+  ],
+  "/swap/ethereum/weth-wrapped-ether": [
+    {
+      heading: "Unwrap or bridge",
+      body: "WETH to ETH stays on Ethereum. ETH on Base or Arbitrum is a bridge, described in [how cross-chain bridges work](/learn/how-do-cross-chain-bridges-work). You still need a little native [ETH](/swap/ethereum/eth-ether) for gas, because WETH cannot pay it.",
+    },
+  ],
+  "/swap/ethereum/wbtc-wrapped-btc": [
+    {
+      heading: "What this swap cannot finish",
+      body: "You receive an ERC-20 on Ethereum. You do not receive bitcoin on the Bitcoin chain, and you cannot paste a Bitcoin address as the destination. If you wanted dollar liquidity instead, compare the quote against [USDC](/swap/ethereum/usdc-usd-coin) or [USDT](/swap/ethereum/usdt-tether-usd) and keep the better minimum.",
+    },
+  ],
+  "/swap/solana/sol-solana": [
+    {
+      heading: "One signature, then stop",
+      body: "There is no approval to revoke afterward. If the preview is wrong, reject it. MetaMask cannot hold this mint. The chain notes are [trade on Solana](/chains/solana). A wrapped asset on Ethereum is a bridge, not a second click on this page.",
+    },
+  ],
+  "/swap/bsc/bnb-eeeeee": [
+    {
+      heading: "Chain id first",
+      body: "If the wallet still says Ethereum, you are not looking at this BNB. Switch to chain id 56, leave BNB for gas, then read the minimum. The chain page is [trade on BNB Chain](/chains/bsc). A token named BNB on Ethereum is a different asset.",
+    },
+  ],
+};
+
 export function authoredFor(page: SeoPageConfig): Block | undefined {
-  return PAGES[page.path];
+  const block = PAGES[page.path];
+  if (!block) return undefined;
+  const extra = MORE[page.path];
+  if (!extra?.length) return block;
+  return { ...block, sections: [...block.sections, ...extra] };
 }

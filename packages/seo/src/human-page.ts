@@ -40,7 +40,7 @@ function open(query: string, rest: string): string {
   return sentence;
 }
 
-/** Google shows about 150 to 160 characters. End on a word, never mid-token. */
+/** Spoken description in the 150 to 160 characters Google shows. Closers are full sentences. */
 function clampMeta(text: string): string {
   const sentences = text.replace(/\s+/g, " ").trim().split(/(?<=\.)\s+/);
   let s = "";
@@ -49,37 +49,14 @@ function clampMeta(text: string): string {
     if (next.length > 160) break;
     s = next;
   }
-  if (!s) s = sentences[0]?.slice(0, 160) ?? text.slice(0, 160);
-  const extras = [
+  if (!s) s = (sentences[0] ?? text).slice(0, 160).trim();
+  for (const closer of [
+    " The quote shows the fee and the minimum before you sign.",
     " You keep the keys.",
-    " The fee is on the quote.",
-    " Sign in your wallet.",
-    " Compare the routes.",
-    " Check the quote.",
-  ];
-  const used = new Set<string>();
-  while (s.length < 150) {
-    const room = 160 - s.length;
-    const fit =
-      extras.find((extra) => !used.has(extra) && extra.length <= room && s.length + extra.length >= 150) ??
-      extras.find((extra) => !used.has(extra) && extra.length <= room);
-    if (!fit) break;
-    used.add(fit);
-    s += fit;
-  }
-  if (s.length < 150 && s.includes(" shown before you sign.")) {
-    const shorter = s.replace(" shown before you sign.", ".");
-    for (const extra of [" You keep the keys.", " Compare the routes."]) {
-      if (shorter.length + extra.length >= 150 && shorter.length + extra.length <= 160) {
-        s = shorter + extra;
-        break;
-      }
-      if (s.length < 150 && shorter.length + extra.length <= 160) s = shorter + extra;
-    }
-  }
-  for (const tail of [" Check it.", " Then sign.", " Read it."]) {
+    " Sign now.",
+  ]) {
     if (s.length >= 150) break;
-    if (s.length + tail.length <= 160) s += tail;
+    if (s.length + closer.length <= 160) s += closer;
   }
   return s.trim();
 }
