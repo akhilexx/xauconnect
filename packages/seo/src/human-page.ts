@@ -8,6 +8,7 @@
  * Learn and guide bodies stay hand-written. This pass only cleans their prose.
  */
 import { BRAND_NAME } from "@xauconnect/utils";
+import { authoredFor } from "./authored-rank-pages.js";
 import { chainFacts, marketSummarySentence } from "./content-blocks.js";
 import type { SeoFaq, SeoPageConfig, SeoSection } from "./types.js";
 
@@ -340,6 +341,16 @@ function sectionsOf(page: SeoPageConfig): { intro: string; sections: SeoSection[
 }
 
 export function applyHumanPage(page: SeoPageConfig): void {
+  const authored = authoredFor(page);
+  if (authored) {
+    page.intro = clean(authored.intro);
+    page.sections = authored.sections.map((s) => ({ heading: clean(s.heading), body: clean(s.body) }));
+    page.faqs = authored.faqs.map((f) => ({ question: clean(f.question), answer: clean(f.answer) }));
+    page.description = clampMeta(clean(authored.description));
+    page.figure = authored.figure;
+    return;
+  }
+
   if (page.kind === "learn" || page.kind === "guide") {
     page.intro = clean(page.intro);
     page.description = clean(page.description);

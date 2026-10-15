@@ -86,6 +86,14 @@ export const SeoPageConfigSchema = z.object({
   primaryQuery: z.string().optional(),
   /** 20–30 word sentence copied from the opening, for AI retrieval checks. */
   citationSnippet: z.string().optional(),
+  /** Diagram that makes the point without the paragraph. */
+  figure: z
+    .object({
+      src: z.string().min(1),
+      alt: z.string().min(1),
+      caption: z.string().min(1),
+    })
+    .optional(),
   relatedLinks: z
     .array(
       z.object({

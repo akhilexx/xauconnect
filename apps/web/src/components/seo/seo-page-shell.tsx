@@ -312,7 +312,7 @@ export function SeoPageShell({ page }: { page: SeoPageConfig }) {
                 {" · "}
                 Reviewed against live product behavior
                 {" · "}
-                Updated August 2026
+                Updated 16 October 2026
               </p>
             ) : null}
             <div className="space-y-3 text-[1.0625rem] leading-[1.75] text-ink-soft">
@@ -323,6 +323,19 @@ export function SeoPageShell({ page }: { page: SeoPageConfig }) {
               ))}
             </div>
           </header>
+
+          {page.figure ? (
+            <figure className="overflow-hidden rounded-glass">
+              <img
+                src={page.figure.src}
+                alt={page.figure.alt}
+                width={1200}
+                height={675}
+                className="h-auto w-full"
+              />
+              <figcaption className="mt-2 text-sm leading-relaxed text-ink-muted">{page.figure.caption}</figcaption>
+            </figure>
+          ) : null}
 
           <MarketStats page={page} />
 
