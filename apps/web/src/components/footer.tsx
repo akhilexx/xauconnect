@@ -64,7 +64,7 @@ export function Footer() {
 
         <div className="mt-3 flex flex-col gap-1 border-t border-white/50 pt-3 text-[11px] leading-relaxed text-ink-faint sm:mt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:pt-4">
           <p>© {new Date().getFullYear()} XAUConnect Labs</p>
-          <p className="sm:text-right">Digital assets are volatile — not financial advice.</p>
+          <p className="sm:text-right">Digital assets are volatile. This is not financial advice.</p>
         </div>
       </div>
     </footer>

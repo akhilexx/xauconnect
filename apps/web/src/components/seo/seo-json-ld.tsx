@@ -2,15 +2,18 @@ import type { SeoPageConfig } from "@xauconnect/seo";
 import {
   articleJsonLd,
   breadcrumbJsonLd,
-  faqJsonLd,
   howToJsonLd,
   webPageJsonLd,
 } from "@/lib/seo/metadata";
 
 export function SeoJsonLd({ page }: { page: SeoPageConfig }) {
-  const blocks: object[] = [webPageJsonLd(page), breadcrumbJsonLd(page), faqJsonLd(page)];
+  // FAQ JSON-LD is not a ranking lever (May 2026). The questions stay in the HTML.
+  // Breadcrumbs repeat the query on commercial pages, so they stay on articles only.
   const articleKinds = new Set<SeoPageConfig["kind"]>(["learn", "guide"]);
-  if (articleKinds.has(page.kind)) blocks.push(articleJsonLd(page));
+  const blocks: object[] = [webPageJsonLd(page)];
+  if (articleKinds.has(page.kind)) {
+    blocks.push(breadcrumbJsonLd(page), articleJsonLd(page));
+  }
   if (page.kind === "guide") blocks.push(howToJsonLd(page));
   return (
     <>

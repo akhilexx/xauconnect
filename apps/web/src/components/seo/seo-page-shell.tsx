@@ -217,8 +217,8 @@ function SwapSection({ page }: { page: SeoPageConfig }) {
       </h2>
       <p className="mt-2 max-w-prose text-sm leading-relaxed text-ink-soft">
         {isCross
-          ? "Open the swap page with this cross-chain route pre-selected, then connect your wallet on the source chain to quote and execute — fully non-custodial."
-          : "Open the swap page to compare live routes, set slippage, and sign from your own wallet — fully non-custodial."}
+          ? "Open the swap page with this cross-chain route pre-selected, then connect your wallet on the source chain to quote and execute. You keep the keys."
+          : "Open the swap page to compare live routes, set slippage, and sign from your own wallet. You keep the keys."}
       </p>
       <div className="mt-5 flex flex-wrap gap-3">
         <Link

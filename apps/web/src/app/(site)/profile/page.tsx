@@ -4,11 +4,14 @@ import { GoldCurveClaims } from "@/components/profile/gold-curve-claims";
 import { PageHeader } from "@/components/page-header";
 import { sitePageMetadata } from "@/lib/seo/site-metadata";
 
-export const metadata: Metadata = sitePageMetadata({
-  title: "My Profile",
-  description: "Connect your socials and personalize your XAUConnect identity.",
-  path: "/profile",
-});
+export const metadata: Metadata = {
+  ...sitePageMetadata({
+    title: "My Profile",
+    description: "Connect your socials and personalize your XAUConnect identity.",
+    path: "/profile",
+  }),
+  robots: { index: false, follow: false },
+};
 
 export default function ProfilePage() {
   return (

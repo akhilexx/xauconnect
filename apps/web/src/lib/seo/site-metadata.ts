@@ -25,7 +25,7 @@ export function sitePageMetadata(opts: {
           url: BRAND_LOGO.og,
           width: BRAND_LOGO.ogWidth,
           height: BRAND_LOGO.ogHeight,
-          alt: `${opts.title} — ${BRAND_NAME}`,
+          alt: `${opts.title}, ${BRAND_NAME}`,
         },
       ],
     },
@@ -41,12 +41,12 @@ export function sitePageMetadata(opts: {
 export const HOME_METADATA: Metadata = {
   title: "Launch a token on Meteora",
   description:
-    "Launch a token on Meteora with XAUConnect’s Gold Curve — Fair, Shield, or Distribute — and traders can buy it immediately on Solana. At exactly 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market.",
+    "Launch a token on Meteora with a Gold Curve. Traders can buy it on Solana right away. At exactly 10 SOL or 750 USDC the pool graduates into a locked market.",
   alternates: { canonical: SITE_URL },
   openGraph: {
-    title: `${BRAND_NAME} — Launch a token on Meteora`,
+    title: `${BRAND_NAME}: Launch a token on Meteora`,
     description:
-      "Launch a token on Meteora with XAUConnect’s Gold Curve — Fair, Shield, or Distribute — and traders can buy it immediately on Solana.",
+      "Launch a token on Meteora with a Gold Curve. Traders can buy it on Solana right away. At 10 SOL or 750 USDC the pool locks.",
     url: SITE_URL,
     type: "website",
     siteName: BRAND_NAME,
@@ -55,15 +55,15 @@ export const HOME_METADATA: Metadata = {
         url: BRAND_LOGO.og,
         width: BRAND_LOGO.ogWidth,
         height: BRAND_LOGO.ogHeight,
-        alt: `Launch a token on Meteora — ${BRAND_NAME}`,
+        alt: `Launch a token on Meteora, ${BRAND_NAME}`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${BRAND_NAME} — Launch a token on Meteora`,
+    title: `${BRAND_NAME}: Launch a token on Meteora`,
     description:
-      "Launch a token on Meteora with XAUConnect’s Gold Curve — Fair, Shield, or Distribute — and traders can buy it immediately on Solana.",
+      "Launch a token on Meteora with a Gold Curve. Traders can buy it on Solana right away. At 10 SOL or 750 USDC the pool locks.",
     images: [BRAND_LOGO.og],
   },
 };

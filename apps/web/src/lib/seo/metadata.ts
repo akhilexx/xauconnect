@@ -89,7 +89,7 @@ export function faqJsonLd(page: SeoPageConfig): object {
 }
 
 const ARTICLE_PUBLISHED = "2026-01-15";
-const ARTICLE_MODIFIED = "2026-10-15";
+const ARTICLE_MODIFIED = "2026-10-16";
 
 export function articleJsonLd(page: SeoPageConfig): object {
   return {

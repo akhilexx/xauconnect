@@ -39,12 +39,58 @@ function open(query: string, rest: string): string {
   return sentence;
 }
 
+/** Google shows about 150 to 160 characters. End on a word, never mid-token. */
 function clampMeta(text: string): string {
-  const cleanText = text.replace(/\s+/g, " ").trim();
-  if (cleanText.length <= 160) return cleanText;
-  const cut = cleanText.slice(0, 157);
-  const space = cut.lastIndexOf(" ");
-  return `${cut.slice(0, space > 90 ? space : 157)}.`;
+  const sentences = text.replace(/\s+/g, " ").trim().split(/(?<=\.)\s+/);
+  let s = "";
+  for (const part of sentences) {
+    const next = s ? `${s} ${part}` : part;
+    if (next.length > 160) break;
+    s = next;
+  }
+  if (!s) s = sentences[0]?.slice(0, 160) ?? text.slice(0, 160);
+  const extras = [
+    " You keep the keys.",
+    " The fee is on the quote.",
+    " Sign in your wallet.",
+    " Compare the routes.",
+    " Check the quote.",
+  ];
+  const used = new Set<string>();
+  while (s.length < 150) {
+    const room = 160 - s.length;
+    const fit =
+      extras.find((extra) => !used.has(extra) && extra.length <= room && s.length + extra.length >= 150) ??
+      extras.find((extra) => !used.has(extra) && extra.length <= room);
+    if (!fit) break;
+    used.add(fit);
+    s += fit;
+  }
+  if (s.length < 150 && s.includes(" shown before you sign.")) {
+    const shorter = s.replace(" shown before you sign.", ".");
+    for (const extra of [" You keep the keys.", " Compare the routes."]) {
+      if (shorter.length + extra.length >= 150 && shorter.length + extra.length <= 160) {
+        s = shorter + extra;
+        break;
+      }
+      if (s.length < 150 && shorter.length + extra.length <= 160) s = shorter + extra;
+    }
+  }
+  for (const tail of [" Check it.", " Then sign.", " Read it."]) {
+    if (s.length >= 150) break;
+    if (s.length + tail.length <= 160) s += tail;
+  }
+  return s.trim();
+}
+
+type AssetClass = "meme" | "stable" | "wrapped" | "native";
+
+function assetClass(sym: string, kind: string): AssetClass {
+  if (kind === "meme-token") return "meme";
+  const s = sym.toUpperCase();
+  if (["USDC", "USDT", "DAI", "FDUSD", "USDE", "TUSD"].includes(s)) return "stable";
+  if (["WETH", "WBTC", "WBNB", "WSOL", "WMATIC"].includes(s)) return "wrapped";
+  return "native";
 }
 
 function feeMath(unit: string): string {
@@ -147,37 +193,58 @@ function sectionsOf(page: SeoPageConfig): { intro: string; sections: SeoSection[
 
   if (page.kind === "swap-token" || page.kind === "meme-token") {
     const market = marketLine(page, sym);
-    const meme = page.kind === "meme-token";
+    const klass = assetClass(sym, page.kind);
+    const contract = page.tokenAddress
+      ? `The contract on this page is ${page.tokenAddress}. Match the full string on ${facts.explorer}. Copycats reuse the first and last characters.`
+      : `Pick the contract on ${facts.explorer}, not the ticker. The same symbol can be a different token.`;
+    const shapes: Record<AssetClass, { heads: [string, string, string]; bodies: [string, string, string] }> = {
+      stable: {
+        heads: ["What a 1,000 unit clip costs", "Native coin or a bridged copy", "When to stay on this chain"],
+        bodies: [
+          [feeMath(sym), facts.gasProfile, market].filter(Boolean).join(" "),
+          `${sym} on ${facts.name} is this chain's contract, not a balance that follows you to another network. ${contract}`,
+          `Bridge only if you need ${sym} somewhere else. A same-chain swap is enough when both tokens already pool here. ${limitLine()}`,
+        ],
+      },
+      meme: {
+        heads: ["What a thin pool does to the fill", "How to tell a copy apart", "Who should skip this"],
+        bodies: [
+          [market, feeMath(sym), "A thin book can move the price while the transaction confirms."].filter(Boolean).join(" "),
+          contract,
+          `Skip this if you need a stable balance. Size it as money you can lose. ${limitLine()}`,
+        ],
+      },
+      wrapped: {
+        heads: ["Unwrapping is not a bridge", "Gas on this network", "When the wrapper is the wrong tool"],
+        bodies: [
+          `Unwrapping ${sym} stays on ${facts.name}. Moving value to another chain is a bridge, and the asset that arrives is a different contract. ${market ?? ""}`.trim(),
+          `${feeMath(sym)} ${facts.gasProfile}`,
+          `${contract} ${limitLine()}`,
+        ],
+      },
+      native: {
+        heads: ["Gas versus the platform fee", "The explorer check", "When the size is too big"],
+        bodies: [
+          `${feeMath(sym)} ${facts.gasProfile} ${market ?? ""}`.trim(),
+          contract,
+          `${facts.liquidityNote} If the minimum received is worse than you will take, do not sign. ${limitLine()}`,
+        ],
+      },
+    };
+    const shape = shapes[klass];
     return {
       intro: open(
         query,
         `Connect a wallet on ${facts.name}, read the minimum you receive, and sign. About a minute when the quote is fresh.`,
       ),
-      sections: [
-        {
-          heading: `A worked ${sym} quote on ${facts.name}`,
-          body: [feeMath(sym), facts.gasProfile, market].filter(Boolean).join(" "),
-        },
-        {
-          heading: `Check ${sym} on ${facts.explorer}`,
-          body: page.tokenAddress
-            ? `The contract for this page is ${page.tokenAddress}. Match the full string on ${facts.explorer}. The first and last characters are not enough, because copycats copy those.`
-            : `Pick ${sym} by contract on ${facts.explorer}, not by ticker. The same symbol can belong to a different token.`,
-        },
-        {
-          heading: meme ? `Who should not buy this ${sym}` : `When not to swap ${sym}`,
-          body: meme
-            ? `Skip this if you need a stable balance or a deep book. A memecoin can move while the transaction confirms, and a thin pool can trap the exit. ${limitLine()}`
-            : `Skip the swap if the minimum received is below what you will accept, or if you are on the wrong network. ${facts.walletNote} ${limitLine()}`,
-        },
-      ],
+      sections: shape.heads.map((heading, i) => ({ heading, body: shape.bodies[i]! })),
       faqs: [
         {
-          question: `Does ${BRAND_NAME} hold ${sym} after I swap?`,
+          question: `Does ${BRAND_NAME} hold ${sym} after the swap?`,
           answer: `No. The tokens stay in the wallet that signed. ${BRAND_NAME} does not take custody.`,
         },
         {
-          question: `What does a ${sym} swap on ${facts.name} cost?`,
+          question: `What does this swap on ${facts.name} cost?`,
           answer: feeMath(sym),
         },
       ],
@@ -288,9 +355,11 @@ export function applyHumanPage(page: SeoPageConfig): void {
 
   const facts = chainFacts(page.chainKey ?? page.fromChainKey);
   const query = page.h1.replace(/\s+[—–-]\s+overview$/i, "").trim();
-  page.description = clampMeta(
-    `${query}. ${facts.name} quotes on ${BRAND_NAME}, with the fee and the minimum you receive shown before you sign.`,
-  );
+  const reason =
+    query.length > 72
+      ? "The quote shows the fee and the minimum you receive before you sign."
+      : `${facts.name} quotes on ${BRAND_NAME}, with the fee and the minimum you receive shown before you sign.`;
+  page.description = clampMeta(`${query}. ${reason}`);
   const short = query.length <= 52 ? query : `${query.slice(0, 49).replace(/\s+\S*$/, "")}`;
   page.title = `${short} | ${BRAND_NAME}`;
 }

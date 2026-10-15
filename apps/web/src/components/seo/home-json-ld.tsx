@@ -15,7 +15,7 @@ function softwareApplicationJsonLd(): object {
       "@type": "Offer",
       price: "0",
       priceCurrency: "USD",
-      description: "Non-custodial swap aggregator — platform fees shown per quote",
+      description: "Non-custodial swap aggregator. Platform fees are shown on the quote.",
     },
     featureList: [
       "Multi-chain DEX aggregation",
@@ -27,54 +27,8 @@ function softwareApplicationJsonLd(): object {
   };
 }
 
-function homeFaqJsonLd(): object {
-  return {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "What is the best way to launch a token on Meteora?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Launch a token on Meteora with XAUConnect’s Gold Curve — Fair, Shield, or Distribute — and traders can buy it immediately on Solana. At exactly 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: `What is ${BRAND_NAME}?`,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: `${BRAND_NAME} is a Meteora token launchpad and a non-custodial multi-chain DEX aggregator. Creators launch a Gold Curve on Solana — Fair, Shield, or Distribute — and traders buy immediately. At 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market. Swap and liquidity stay available on Ethereum, Solana, BNB Chain, Polygon, Arbitrum, Base, and Avalanche.`,
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Is XAUConnect custodial?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "No. You connect your own wallet and sign every transaction. XAUConnect routes swaps but never holds user funds.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Does XAUConnect have an API for developers?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. The public Swap API provides quote, build, and record endpoints. OpenAPI spec and SDK docs are at xauconnect.com/developers.",
-        },
-      },
-    ],
-  };
-}
-
 export function HomeJsonLd() {
-  const blocks = [
-    organizationJsonLd(),
-    webSiteJsonLd(),
-    softwareApplicationJsonLd(),
-    homeFaqJsonLd(),
-  ];
+  const blocks = [organizationJsonLd(), webSiteJsonLd(), softwareApplicationJsonLd()];
   return (
     <>
       {blocks.map((block, i) => (

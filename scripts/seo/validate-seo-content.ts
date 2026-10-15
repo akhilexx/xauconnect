@@ -20,6 +20,20 @@ export function validateSeoContent(): void {
     return;
   }
 
+  const generatedKinds = new Set([
+    "swap-token",
+    "meme-token",
+    "pair",
+    "cross-chain-swap",
+    "search",
+    "chain",
+    "swap-hub",
+    "meme-hub",
+    "launch",
+    "discover",
+    "trade",
+  ]);
+  let badDesc = 0;
   let belowMin = 0;
   let aboveMax = 0;
   const introCounts = new Map<string, number>();
@@ -38,6 +52,12 @@ export function validateSeoContent(): void {
     /\bdelve\b/i,
     /\bit's important to note\b/i,
     /\bin today's world\b/i,
+    /\bthe writer\b/i,
+    /\bthis playbook\b/i,
+    /\bcheckable beats\b/i,
+    /\bdo the opposite\b/i,
+    /\bcommon search theme\b/i,
+    /\bas an ai\b/i,
   ];
   let bannedHits = 0;
 
@@ -45,6 +65,10 @@ export function validateSeoContent(): void {
     const body = [page.intro, ...page.sections.map((s) => s.body)].join(" ");
     const words = wordCount(body);
     if (words < MIN_BODY_WORDS) belowMin++;
+    if (generatedKinds.has(page.kind)) {
+      const n = page.description.length;
+      if (n < 150 || n > 160) badDesc++;
+    }
     if (words > 750) aboveMax++;
 
     if (banned.some((re) => re.test(body))) bannedHits++;
@@ -60,6 +84,7 @@ export function validateSeoContent(): void {
   log("validate-seo", `<${MIN_BODY_WORDS} words: ${belowMin} | >750 words: ${aboveMax}`);
   log("validate-seo", `duplicate intro prefixes: ${dupIntros} (${dupRate}%)`);
   log("validate-seo", `banned SEO/meta phrases: ${bannedHits}`);
+  log("validate-seo", `generated descriptions outside 150-160: ${badDesc}`);
 
   if (belowMin > 0) {
     log("validate-seo", `${belowMin} pages are under ${MIN_BODY_WORDS} words (allowed: length follows the material)`);
@@ -70,6 +95,10 @@ export function validateSeoContent(): void {
   });
   if (empty.length > 0) {
     console.error(`FAIL: ${empty.length} pages under 40 words — ${empty[0]?.path}`);
+    process.exit(1);
+  }
+  if (badDesc > 0) {
+    console.error(`FAIL: ${badDesc} generated descriptions are not 150-160 characters`);
     process.exit(1);
   }
   if (bannedHits > 0) {

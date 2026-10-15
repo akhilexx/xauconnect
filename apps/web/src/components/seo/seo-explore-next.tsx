@@ -117,7 +117,7 @@ export function SeoExploreNext({ page }: { page: SeoPageConfig }) {
           Related markets, guides &amp; networks
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted">
-          Curated next steps based on this topic — deepen your research before you trade.
+          Next pages on this subject. Read them before you trade.
         </p>
       </div>
 
@@ -167,7 +167,7 @@ export function SeoExploreNext({ page }: { page: SeoPageConfig }) {
           <div>
             <p className="text-sm font-bold text-ink">Build programmatically</p>
             <p className="mt-1 text-sm text-ink-muted">
-              Swap via API for bots and AI agents — quotes, builds, and cross-chain routes.
+              Swap via API for bots and AI agents: quotes, builds, and cross-chain routes.
             </p>
           </div>
           <Link

@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   ...siteVerification,
   title: {
-    default: `${BRAND_NAME} — Launch a token on Meteora`,
+    default: `${BRAND_NAME}: Launch a token on Meteora`,
     template: `%s · ${BRAND_NAME}`,
   },
   description: BRAND_DESCRIPTION,
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.webmanifest",
   openGraph: {
-    title: `${BRAND_NAME} — Launch a token on Meteora`,
+    title: `${BRAND_NAME}: Launch a token on Meteora`,
     description: BRAND_DESCRIPTION,
     type: "website",
     siteName: BRAND_NAME,
@@ -63,13 +63,13 @@ export const metadata: Metadata = {
         url: BRAND_LOGO.og,
         width: BRAND_LOGO.ogWidth,
         height: BRAND_LOGO.ogHeight,
-        alt: `${BRAND_NAME} — ${BRAND_TAGLINE}`,
+        alt: `${BRAND_NAME}: ${BRAND_TAGLINE}`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: `${BRAND_NAME} — Launch a token on Meteora`,
+    title: `${BRAND_NAME}: Launch a token on Meteora`,
     description: BRAND_DESCRIPTION,
     images: [BRAND_LOGO.og],
   },

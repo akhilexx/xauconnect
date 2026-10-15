@@ -4,10 +4,10 @@ import { RecentLaunches } from "@/components/launchpad/recent-launches";
 import { PageHeader } from "@/components/page-header";
 
 const HOME_LEAD =
-  "Launch a token on Meteora with XAUConnect’s Gold Curve — Fair, Shield, or Distribute — and traders can buy it immediately on Solana. At exactly 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market.";
+  "Launch a token on Meteora with a Gold Curve: Fair, Shield, or Distribute. Traders can buy it immediately on Solana. At exactly 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market.";
 
 const LAUNCHPAD_LEAD =
-  "Launch a Gold Curve on Meteora with XAUConnect — Fair, Shield, or Distribute — and traders can buy your token immediately on Solana. At exactly 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market.";
+  "Launch a Gold Curve on Meteora with XAUConnect: Fair, Shield, or Distribute. Traders can buy your token immediately on Solana. At exactly 10 SOL or 750 USDC the pool graduates into a locked DAMM v2 market.";
 
 /** Shared launchpad landing. Home and /launchpad use different queries so each H1 matches its title. */
 export function LaunchpadScreen({ variant = "launchpad" }: { variant?: "home" | "launchpad" }) {
