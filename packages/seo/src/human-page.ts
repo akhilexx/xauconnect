@@ -8,7 +8,9 @@
  * Learn and guide bodies stay hand-written. This pass only cleans their prose.
  */
 import { BRAND_NAME } from "@xauconnect/utils";
+import { authoredCrossChain } from "./authored-cross-chain.js";
 import { authoredFor } from "./authored-rank-pages.js";
+import { writeCrossChain } from "./cross-chain-articles.js";
 import { chainFacts, marketSummarySentence } from "./content-blocks.js";
 import type { SeoFaq, SeoPageConfig, SeoSection } from "./types.js";
 
@@ -59,6 +61,32 @@ function clampMeta(text: string): string {
     if (s.length + closer.length <= 160) s += closer;
   }
   return s.trim();
+}
+
+/** Keep a spoken description. Do not append a fragment when the sentence already fits. */
+function fitDescription(text: string): string {
+  const s = text.replace(/\s+/g, " ").trim();
+  if (s.length >= 150 && s.length <= 160) return s;
+  if (s.length > 160) {
+    const cut = s.slice(0, 157);
+    const space = cut.lastIndexOf(" ");
+    const base = (space > 120 ? cut.slice(0, space) : cut).replace(/[,:;]+$/, "");
+    const withStop = /[.!?]$/.test(base) ? base : `${base}.`;
+    return withStop.length <= 160 ? withStop : withStop.slice(0, 160).trim();
+  }
+  return clampMeta(s);
+}
+
+function bridgeFigure(page: SeoPageConfig): { src: string; alt: string; caption: string } {
+  const titled = page.h1.match(/^Swap (\S+) from (.+) to (\S+) on (.+)$/);
+  const caption = titled
+    ? `${titled[1]} leaves ${titled[2]}. ${titled[3]} is what can arrive on ${titled[4]}.`
+    : page.h1;
+  return {
+    src: "/seo/cross-chain-bridge.jpg",
+    alt: `Diagram for ${page.h1.replace(/\.$/, "")}`,
+    caption,
+  };
 }
 
 type AssetClass = "meme" | "stable" | "wrapped" | "native";
@@ -326,6 +354,29 @@ export function applyHumanPage(page: SeoPageConfig): void {
     page.description = clampMeta(clean(authored.description));
     page.figure = authored.figure;
     return;
+  }
+
+  if (page.kind === "cross-chain-swap") {
+    const article = authoredCrossChain(page.path);
+    if (article) {
+      page.intro = clean(article.intro);
+      page.sections = article.sections.map((s) => ({ heading: clean(s.heading), body: clean(s.body) }));
+      page.faqs = (article.faqs ?? []).map((f) => ({ question: clean(f.question), answer: clean(f.answer) }));
+      page.description = fitDescription(clean(article.description));
+      page.figure = bridgeFigure(page);
+      page.noindex = false;
+      return;
+    }
+    const built = writeCrossChain(page);
+    if (built) {
+      page.intro = clean(built.intro);
+      page.sections = built.sections.map((s) => ({ heading: clean(s.heading), body: clean(s.body) }));
+      page.faqs = built.faqs.map((f) => ({ question: clean(f.question), answer: clean(f.answer) }));
+      page.description = clampMeta(clean(built.description));
+      page.figure = built.figure;
+      page.noindex = false;
+      return;
+    }
   }
 
   if (page.kind === "learn" || page.kind === "guide") {

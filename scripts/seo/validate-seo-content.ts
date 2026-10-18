@@ -102,6 +102,26 @@ export function validateSeoContent(): void {
     console.error(`FAIL: ${badDesc} generated descriptions are broken`);
     process.exit(1);
   }
+  let crossDup = 0;
+  const crossIntros = new Map<string, number>();
+  let crossMissingFact = 0;
+  for (const page of pages) {
+    if (page.kind !== "cross-chain-swap" || page.noindex) continue;
+    const key = page.intro.slice(0, 140);
+    const prev = crossIntros.get(key) ?? 0;
+    if (prev > 0) crossDup++;
+    crossIntros.set(key, prev + 1);
+    const body = [page.intro, ...page.sections.map((s) => s.body)].join(" ");
+    if (!page.swapPreset?.tokenIn || !body.includes(page.swapPreset.tokenIn)) crossMissingFact++;
+    if (!page.swapPreset?.tokenOut || !body.includes(page.swapPreset.tokenOut)) crossMissingFact++;
+  }
+  log("validate-seo", `cross-chain duplicate openings: ${crossDup}`);
+  log("validate-seo", `cross-chain pages missing a contract address: ${crossMissingFact}`);
+  if (crossDup > 0 || crossMissingFact > 0) {
+    console.error("FAIL: cross-chain pages are not unique or are missing contract facts");
+    process.exit(1);
+  }
+
   if (bannedHits > 0) {
     console.error(`FAIL: ${bannedHits} pages contain SEO meta-commentary — fix content engine`);
     process.exit(1);
