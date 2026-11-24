@@ -68,7 +68,7 @@ fi
 
 echo "==> packaging"
 TARBALL="$(mktemp -t xauconnect-deploy).tgz"
-tar -czf "$TARBALL" \
+COPYFILE_DISABLE=1 tar -czf "$TARBALL" \
   --exclude='.git' \
   --exclude='*node_modules*' \
   --exclude='apps/web/.next/cache' \
@@ -79,6 +79,9 @@ tar -czf "$TARBALL" \
   --exclude='vendor' \
   --exclude='.cursor' \
   --exclude='PROJECT_CONTEXT.md' \
+  --exclude='.web-releases' \
+  --exclude='.web-stage-*' \
+  --exclude='._*' \
   --exclude='.next-server-merge' \
   --exclude='deploy/secrets' \
   --exclude='*.env' \

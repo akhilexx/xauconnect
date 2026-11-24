@@ -4,8 +4,14 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine')
 
 Set-Location C:\xauconnect
 
-tar --no-acls --no-same-permissions -xzf deploy.tgz
-if ($LASTEXITCODE -ne 0) {throw "Archive extraction failed"}
+# The archive can contain routes whose old location is also resolvable by Next.
+# Stage compiled files in an empty directory, then promote them as a unit.
+$stage=Join-Path 'C:\xauconnect' ('.web-stage-'+[Guid]::NewGuid().ToString('N'))
+[IO.Directory]::CreateDirectory($stage)|Out-Null
+tar --no-acls --no-same-permissions -xzf deploy.tgz -C $stage './apps/web/.next'
+if ($LASTEXITCODE -ne 0) {throw "Web build staging failed"}
+tar --no-acls --no-same-permissions --exclude './apps/web/.next' --exclude './apps/web/.next/*' -xzf deploy.tgz
+if ($LASTEXITCODE -ne 0) {throw "Source extraction failed"}
 Remove-Item deploy.tgz -Force
 
 # Deploys extract over the tree and do not delete files that left the repo.
@@ -52,7 +58,8 @@ if ($webArgs -match 'next start -p 3000$') {
   & $nssm set xauconnect-web AppParameters "$webArgs -H 127.0.0.1"
   if ($LASTEXITCODE -ne 0) { throw "Could not bind web listener to loopback" }
 }
-& $nssm restart xauconnect-web
+& .\deploy\install-web-build.ps1 -IncomingBuild (Join-Path $stage 'apps\web\.next')
+Remove-Item -LiteralPath $stage -Recurse -Force
 
 function Wait-Status([string]$url) {
   for ($i = 1; $i -le 12; $i++) {
