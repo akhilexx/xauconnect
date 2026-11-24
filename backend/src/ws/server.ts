@@ -157,14 +157,16 @@ export function attachWebSocket(server: Server): void {
     }, 12_000),
   );
 
+  let lastBroadcastSettlement:string|undefined;
   timers.push(
     setInterval(async () => {
       if (!db) return;
       try {
         const swap = await db.swap.findFirst({
           where: { verifiedAt: { not: null }, settlementKey: { not: null }, status: "confirmed" },
-          orderBy: { createdAt: "desc" },
+          orderBy: [{verifiedAt:"desc"},{id:"desc"}],
           select: {
+            id:true,
             chainKey: true,
             tokenIn: true,
             volumeUsd: true,
@@ -172,7 +174,8 @@ export function attachWebSocket(server: Server): void {
             createdAt: true,
           },
         });
-        if (swap) {
+        if (swap && swap.id!==lastBroadcastSettlement) {
+          lastBroadcastSettlement=swap.id;
           broadcast("swaps", {
             chainKey: swap.chainKey,
             symbol: swap.tokenIn.slice(0, 6),

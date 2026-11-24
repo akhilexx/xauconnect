@@ -4,7 +4,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine')
 
 Set-Location C:\xauconnect
 
-tar -xzf deploy.tgz
+tar --no-acls --no-same-permissions -xzf deploy.tgz
 if ($LASTEXITCODE -ne 0) {throw "Archive extraction failed"}
 Remove-Item deploy.tgz -Force
 

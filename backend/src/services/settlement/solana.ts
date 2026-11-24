@@ -92,7 +92,8 @@ export async function verifySolana(t: Ticket): Promise<Evidence> {
     );
     const movement = (mint: string) =>
       mint === SOLANA_NATIVE_MINT ? wrappedMovement(tx, t.taker) : splDelta(tx, t.taker, mint);
-    const fee = splDelta(tx, t.feeRecipient, t.tokenOut);
+    // A collector swapping its own holdings cannot earn a fee from itself.
+    const fee = t.taker === t.feeRecipient ? 0n : splDelta(tx, t.feeRecipient, t.tokenOut);
     return {
       amountIn: -movement(t.tokenIn),
       amountOut: movement(t.tokenOut),
