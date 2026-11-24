@@ -189,7 +189,14 @@ export class XauApiClient {
     return this.post("/auth/admin-login", { email, password, browserSession:typeof window!=="undefined" });
   }
 
-  signOut():Promise<{ok:boolean}> {return this.post("/auth/logout",{});}
+  /** Restore browser identity using the HttpOnly cookie. No secret is exposed to JS. */
+  browserAdminIdentity(): Promise<{ session: { address: string; role: "ADMIN" | "USER" } }> {
+    return this.request("/auth/me", { headers: { authorization: "Bearer cookie-session" } });
+  }
+
+  signOut(): Promise<{ok:boolean}> {
+    return this.request("/auth/logout",{method:"POST",body:"{}",signal:AbortSignal.timeout(15000)});
+  }
 
   /** Fetch the signed-in user's social profile. */
   getProfile(): Promise<{ profile: UserSocialProfile | null }> {

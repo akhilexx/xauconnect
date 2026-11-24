@@ -100,7 +100,7 @@ function sectionFromHash(): Section {
 
 export function AdminDashboard() {
   const router = useRouter(),
-    { sessionReady, isAdmin } = useAdminSessionGuard();
+    { sessionReady, isAdmin, restoreError, retryRestore } = useAdminSessionGuard();
   const [section, setSection] = useState<Section>("overview"),
     [open, setOpen] = useState(false);
   const toggle = useRef<HTMLButtonElement>(null),
@@ -127,6 +127,15 @@ export function AdminDashboard() {
   }, [open]);
   const page = pages.find((p) => p.id === section)!,
     Panel = page.panel;
+  if (restoreError)
+    return (
+      <GlassCard className="mx-auto max-w-md space-y-3">
+        <p>Could not check your saved admin login.</p>
+        <GlassButton variant="glass" onClick={() => void retryRestore()}>
+          Try again
+        </GlassButton>
+      </GlassCard>
+    );
   if (!sessionReady || !isAdmin)
     return (
       <div className="p-8" aria-label="Checking admin session">

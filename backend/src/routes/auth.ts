@@ -12,6 +12,14 @@ import { cache } from "../cache.js";
 import { adminAddresses, env } from "../config.js";
 import { db } from "../db/client.js";
 import { asyncHandler, validate, ApiError } from "../middleware/error.js";
+import {
+  ADMIN_COOKIE,
+  adminCookie,
+  adminCookieOptions,
+  createBrowserSession,
+  isBrowserCredential,
+  revokeBrowserSession,
+} from "../services/admin-browser-session.js";
 import { authLimiter } from "../middleware/rate-limit.js";
 import {
   buildChallengeMessage,
@@ -26,27 +34,39 @@ authRouter.use((_req, res, next) => {
   next();
 }, authLimiter);
 async function sendSession(req: Request, res: Response, address: string, role: "ADMIN" | "USER") {
+  const previous = adminCookie(req);
+  if (role === "ADMIN" && req.body.browserSession === true) {
+    const { raw, expiresAt } = await createBrowserSession(address, previous);
+    res.cookie(ADMIN_COOKIE, raw, { ...adminCookieOptions, expires: expiresAt });
+    res.json({ token: "cookie-session", role });
+    return;
+  }
+  if (req.body.browserSession === true && previous) {
+    await revokeBrowserSession(previous);
+    res.clearCookie(ADMIN_COOKIE, adminCookieOptions);
+  }
   const token = signSession({ address, role });
   if (role === "ADMIN") await cache.set("auth:active:" + verifySessionToken(token).jti, "1", 1800);
-  if (role === "ADMIN" && req.body.browserSession === true) {
-    res.cookie("xau_admin", token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "strict",
-      path: "/",
-      maxAge: 30 * 60_000,
-    });
-    res.json({ token: "cookie-session", role });
-  } else res.json({ token, role });
+  res.json({ token, role });
 }
+
 authRouter.post(
   "/logout",
-  requireAuth,
+  // Deletion by the browser's own credential is idempotent, including after expiry.
+  (req, res, next) => {
+    if (
+      req.get("authorization") === "Bearer cookie-session" &&
+      (!adminCookie(req) || isBrowserCredential(adminCookie(req)))
+    )
+      return next();
+    requireAuth(req, res, next);
+  },
   asyncHandler(async (req, res) => {
-    if (req.session?.role === "ADMIN") await cache.del("auth:active:" + req.session.jti);
-    res
-      .clearCookie("xau_admin", { path: "/", httpOnly: true, secure: true, sameSite: "strict" })
-      .json({ ok: true });
+    if (req.get("authorization") === "Bearer cookie-session")
+      await revokeBrowserSession(adminCookie(req));
+    if (req.session?.role === "ADMIN" && req.session.jti)
+      await cache.del("auth:active:" + req.session.jti);
+    res.clearCookie(ADMIN_COOKIE, adminCookieOptions).json({ ok: true });
   }),
 );
 

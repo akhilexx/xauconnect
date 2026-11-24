@@ -4,6 +4,12 @@ The admin console is an internal Next.js destination in the shared SiteShell. Us
 
 The UI rules are in [.cursor/rules/app-ui.mdc](../../.cursor/rules/app-ui.mdc). Reuse the shared Liquid Glass primitives and theme variables for new admin surfaces.
 
+## Remembered admin logins
+
+A browser admin login lasts **365 days from sign-in** by default, even after inactivity, closing the browser or restarting the API. Set `ADMIN_BROWSER_SESSION_DAYS` (1–365) to change the lifetime of newly issued browser sessions. The browser holds a random credential in a Secure, HttpOnly, SameSite=Strict cookie. PostgreSQL keeps only its keyed digest, principal, credential tag and expiry. Browser UI storage contains no admin secret; the console can recover its identity from the cookie.
+
+Signing out deletes that device's server record. Other devices keep their own sessions. Clearing the browser's cookies requires signing in again. Rotating the JWT secret invalidates these credentials; changing the console password/email or removing a wallet from the admin allowlist also invalidates the corresponding access. Operators can revoke all remembered logins for a principal by deleting its rows from `AdminBrowserSession`. Expired rows are pruned when a new browser session is issued. API bearer admin sessions retain their 30-minute limit.
+
 ## Repeat the browser checks
 
 Use Node 22 and a Playwright installation with Chromium and WebKit browsers available. Set `PLAYWRIGHT_MODULE` to the installed module path if it is outside the workspace; set `CHROME_PATH` to use an installed Chrome binary. Supply the operator login via the environment or a restricted local env file.

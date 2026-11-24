@@ -12,6 +12,11 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
+import {
+  adminCookie,
+  isBrowserCredential,
+  readBrowserSession,
+} from "../services/admin-browser-session.js";
 import { cache } from "../cache.js";
 import { adminAddresses, env } from "../config.js";
 import { ApiError } from "./error.js";
@@ -76,11 +81,16 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   }
   const raw = header.slice(7);
   // A custom Authorization header is required even for cookie sessions (CSRF protection).
-  const token =
-    raw === "cookie-session"
-      ? /(?:^|;\s*)xau_admin=([^;]+)/.exec(req.headers.cookie ?? "")?.[1]
-      : raw;
-  req.session = verifySessionToken(token ?? "");
+  const cookie = raw === "cookie-session" ? adminCookie(req) : "";
+  if (isBrowserCredential(cookie)) {
+    void readBrowserSession(cookie).then((session) => {
+      req.session = session;
+      next();
+    }, next);
+    return;
+  }
+  // Older cookies and non-browser clients use the short-lived JWT path.
+  req.session = verifySessionToken(raw === "cookie-session" ? cookie : raw);
   if (req.session.role === "ADMIN") {
     void cache
       .get("auth:active:" + req.session.jti)

@@ -4,6 +4,7 @@
  * Session hydration + admin auth helpers.
  */
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { XauApiError } from "@xauconnect/sdk";
 import { toast } from "@xauconnect/ui";
@@ -53,50 +54,103 @@ export function useAdminReady(): boolean {
 }
 
 export function isSessionAuthError(error: unknown): boolean {
-  if (error instanceof XauApiError) {
-    return error.status === 401 || error.code === "UNAUTHORIZED" || error.code === "FORBIDDEN";
-  }
-  const msg = (error as Error)?.message?.toLowerCase() ?? "";
-  return (
-    msg.includes("session token") ||
-    msg.includes("unauthorized") ||
-    msg.includes("admin role") ||
-    msg.includes("missing authorization")
+  if (error instanceof XauApiError) return error.status === 401;
+  return /invalid or expired session token|missing authorization header|admin session expired/i.test(
+    (error as Error)?.message ?? "",
   );
 }
 
-/** Clear session and API token. */
-export function logoutSession(): void {
-  if(useSessionStore.getState().token) void api.signOut().catch(()=>{});
+function clearLocalSession() {
   useSessionStore.getState().clearSession();
   clearAdminQueries();
 }
 
-/**
- * Sign out of the admin console and redirect to login.
- * Use when the JWT is missing, expired, or rejected by the API.
- */
-export function logoutAdmin(router?: { replace: (url: string) => void }, reason?: string): void {
-  logoutSession();
-  const query = reason ? `?reason=${reason}` : "";
-  const target = `${ADMIN_LOGIN_PATH}${query}`;
+/** Explicit sign-out is complete only after the server revokes the credential. */
+export async function logoutSession(): Promise<void> {
+  try {
+    if (useSessionStore.getState().token) await api.signOut();
+  } catch (error) {
+    if (!isSessionAuthError(error)) throw error;
+  }
+  clearLocalSession();
+}
+
+export async function logoutAdmin(router?: { replace: (url: string) => void }, reason?: string) {
+  if (reason === "session_expired") clearLocalSession();
+  else {
+    try {
+      await logoutSession();
+    } catch {
+      toast.error("Could not sign out. Please try again.");
+      return;
+    }
+  }
+  const target = reason ? `${ADMIN_LOGIN_PATH}?reason=${reason}` : ADMIN_LOGIN_PATH;
   if (router) router.replace(target);
   else if (typeof window !== "undefined") window.location.href = target;
 }
 
-/** Redirect to login when admin session is absent after hydration. */
-export function useAdminSessionGuard(): { sessionReady: boolean; isAdmin: boolean } {
-  const router = useRouter();
-  const sessionReady = useSessionReady();
-  const { role, token } = useSessionStore();
-  const isAdmin = sessionReady && role === "ADMIN" && Boolean(token);
-
+/** If browser UI storage is missing, recover the identity from the server before
+ * redirecting. A network or database outage must not erase a remembered login. */
+export function useRememberedAdmin(checkKnownCookie = false) {
+  const ready = useSessionReady();
+  const { token, role, address, setSession, clearSession } = useSessionStore();
+  const check = ready && (!token || (checkKnownCookie && token === "cookie-session"));
+  const probe = useQuery({
+    queryKey: ["admin-browser-identity", token ?? "no-hint"],
+    enabled: check,
+    retry: false,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    queryFn: async () => {
+      try {
+        const { session } = await api.browserAdminIdentity();
+        return session.role === "ADMIN" ? session : null;
+      } catch (error) {
+        if (isSessionAuthError(error)) return null;
+        throw error;
+      }
+    },
+  });
   useEffect(() => {
-    if (!sessionReady) return;
-    if (!isAdmin) router.replace(ADMIN_LOGIN_PATH);
-  }, [sessionReady, isAdmin, router]);
+    if (!check || !probe.isSuccess || probe.isFetching) return;
+    const identity = probe.data;
+    if (
+      identity &&
+      (token !== "cookie-session" || role !== "ADMIN" || address !== identity.address)
+    ) {
+      setSession({ token: "cookie-session", address: identity.address, role: "ADMIN" });
+    } else if (!identity && token === "cookie-session") {
+      clearSession();
+    }
+  }, [
+    check,
+    probe.isSuccess,
+    probe.isFetching,
+    probe.data,
+    token,
+    role,
+    address,
+    setSession,
+    clearSession,
+  ]);
+  return {
+    sessionReady: ready && (!check || (!probe.isPending && !probe.isFetching)),
+    isAdmin: check ? Boolean(probe.data) : ready && role === "ADMIN" && Boolean(token),
+    restoreError: check && probe.isError,
+    retryRestore: probe.refetch,
+  };
+}
 
-  return { sessionReady, isAdmin };
+export function useAdminSessionGuard() {
+  const router = useRouter(),
+    state = useRememberedAdmin();
+  const { sessionReady, isAdmin, restoreError } = state;
+  useEffect(() => {
+    if (sessionReady && !isAdmin && !restoreError) router.replace(ADMIN_LOGIN_PATH);
+  }, [sessionReady, isAdmin, restoreError, router]);
+  return state;
 }
 
 /** React to expired/invalid tokens from admin API responses. */

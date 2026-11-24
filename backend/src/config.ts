@@ -19,6 +19,7 @@ const EnvSchema = z.object({
       if (process.env.NODE_ENV === "production") throw new Error("JWT_SECRET is required");
       return randomBytes(48).toString("hex");
     }),
+  ADMIN_BROWSER_SESSION_DAYS: z.coerce.number().int().min(1).max(365).default(365),
   ADMIN_ADDRESSES: z.string().default(""),
   /** Credentials for the /admin/login console (override via env). */
   ADMIN_EMAIL: z.string().default(""),

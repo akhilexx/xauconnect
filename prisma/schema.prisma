@@ -52,6 +52,18 @@ enum AuditBadge {
   VERIFIED
 }
 
+/// Revocable admin browser credentials. Only a keyed digest of the cookie is stored.
+model AdminBrowserSession {
+  tokenHash     String   @id @db.Char(64)
+  address       String
+  credentialTag String   @db.Char(64)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt     DateTime @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@index([address])
+}
+
 model User {
   id         String    @id @default(cuid())
   /// Wallet address (EVM checksummed or Solana base58)

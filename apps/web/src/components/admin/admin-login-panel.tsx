@@ -9,37 +9,34 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AtSign, Eye, EyeOff, KeyRound, Lock } from "lucide-react";
-import { GlassButton, GlassCard, toast } from "@xauconnect/ui";
+import { GlassButton, GlassCard, Skeleton, toast } from "@xauconnect/ui";
 import { BRAND_NAV_ICONS } from "@xauconnect/utils";
 import { api } from "@/lib/api";
 import { ADMIN_CONSOLE_PATH } from "@/lib/admin-path";
 import { clearAdminQueries } from "@/lib/query-client";
+import { logoutAdmin, useRememberedAdmin } from "@/lib/session";
 import { useSessionStore } from "@/lib/store";
 import { BrandGlyph } from "@/components/brand-glyph";
 
 export function AdminLoginPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { role, setSession, clearSession } = useSessionStore();
+  const { setSession } = useSessionStore();
+  const { sessionReady, isAdmin, restoreError, retryRestore } = useRememberedAdmin(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
-
+  const reason = searchParams.get("reason");
+  const sessionNotice =
+    reason === "session_expired"
+      ? "Your session expired. Please sign in again."
+      : reason === "signout"
+        ? "You have been signed out."
+        : null;
   useEffect(() => {
-    const reason = searchParams.get("reason");
-    if (reason === "session_expired") {
-      clearSession();
-      clearAdminQueries();
-      setSessionNotice("Your session expired. Please sign in again.");
-      toast.error("Session expired", { description: "Sign in to continue." });
-    } else if (reason === "signout") {
-      clearSession();
-      clearAdminQueries();
-      setSessionNotice("You have been signed out.");
-    }
-  }, [searchParams, clearSession]);
+    if (sessionReady && isAdmin && !restoreError) router.replace(ADMIN_CONSOLE_PATH);
+  }, [sessionReady, isAdmin, restoreError, router]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -50,7 +47,7 @@ export function AdminLoginPanel() {
       clearAdminQueries();
       setSession({ token, address: "admin:console", role });
       toast.success("Welcome back, operator");
-      router.push(ADMIN_CONSOLE_PATH);
+      router.replace(ADMIN_CONSOLE_PATH);
     } catch (err) {
       toast.error("Login failed", { description: (err as Error).message.slice(0, 120) });
     } finally {
@@ -58,6 +55,16 @@ export function AdminLoginPanel() {
     }
   }
 
+  if (restoreError)
+    return (
+      <GlassCard className="mx-auto max-w-md space-y-3">
+        <p>Could not check your saved admin login.</p>
+        <GlassButton variant="glass" onClick={() => void retryRestore()}>
+          Try again
+        </GlassButton>
+      </GlassCard>
+    );
+  if (!sessionReady) return <Skeleton className="mx-auto h-64 w-full max-w-md" />;
   return (
     <GlassCard variant="gradient" padding="lg" className="mx-auto my-4 w-full max-w-md sm:my-10">
       <div className="flex items-start gap-3">
@@ -77,7 +84,7 @@ export function AdminLoginPanel() {
         </p>
       )}
 
-      {role === "ADMIN" ? (
+      {isAdmin ? (
         <div className="relative mt-6 flex flex-col gap-3">
           <p className="rounded-2xl bg-success/10 px-4 py-3 text-center text-sm font-semibold text-success ring-1 ring-success/30">
             You are signed in as an administrator.
@@ -88,13 +95,7 @@ export function AdminLoginPanel() {
           <GlassButton
             variant="ghost"
             size="sm"
-            onClick={() => {
-              void api.signOut().catch(() => {});
-              clearSession();
-              clearAdminQueries();
-              setSessionNotice("You have been signed out.");
-              toast.success("Signed out");
-            }}
+            onClick={() => void logoutAdmin(router, "signout")}
           >
             Sign out
           </GlassButton>

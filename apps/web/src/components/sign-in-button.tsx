@@ -11,12 +11,13 @@ import { KeyRound, LogOut } from "lucide-react";
 import { GlassButton, toast } from "@xauconnect/ui";
 import { shortenAddress } from "@xauconnect/utils";
 import { api } from "@/lib/api";
+import { logoutSession } from "@/lib/session";
 import { useSessionStore } from "@/lib/store";
 
 export function SignInButton() {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
-  const { token, address: sessionAddress, setSession, clearSession } = useSessionStore();
+  const { token, address: sessionAddress, setSession } = useSessionStore();
   const [loading, setLoading] = useState(false);
 
   if (!isConnected || !address) return null;
@@ -46,13 +47,21 @@ export function SignInButton() {
       variant="ghost"
       size="sm"
       className="rounded-full"
-      onClick={() => clearSession()}
+      onClick={() =>
+        void logoutSession().catch(() => toast.error("Could not sign out. Please try again."))
+      }
       title="Clear backend session"
     >
       <LogOut className="h-3.5 w-3.5" /> Session
     </GlassButton>
   ) : (
-    <GlassButton variant="glass" size="sm" className="rounded-full" onClick={signIn} loading={loading}>
+    <GlassButton
+      variant="glass"
+      size="sm"
+      className="rounded-full"
+      onClick={signIn}
+      loading={loading}
+    >
       <KeyRound className="h-3.5 w-3.5" /> Sign in
     </GlassButton>
   );
