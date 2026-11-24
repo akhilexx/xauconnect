@@ -1,0 +1,12 @@
+---
+description: Preserve XAUConnect's established visual identity and in-app navigation on all product screens.
+alwaysApply: true
+---
+
+# XAUConnect UI
+
+- For every new or redesigned surface, inspect the adjacent product screens first. Use the Liquid Glass system in `packages/ui/src/styles.css`, the Tailwind preset in `packages/ui/tailwind-preset.cjs`, existing brand glyphs and shared UI components. Native mobile uses the matching tokens in `apps/mobile/src/theme.ts`.
+- Use the light canvas, ink typography, display font, translucent surfaces, gold primary and blush secondary accents. Keep semantic success/danger colors for status. An admin dashboard, form or chart uses the same system. Introduce a different visual identity only on explicit user request.
+- Internal destinations, including admin sign-in and the admin console, navigate within the current app tab and shared SiteShell. Preserve the header, desktop navigation, footer, mobile dock, and browser Back behavior.
+- Give filters and form fields visible labels, group related settings, and separate primary and destructive actions. Reflow dense records on narrow screens.
+- For UI releases, exercise the actual navigation path and changed controls in desktop and mobile browser layouts. Verify text, focus, overflow, dialogs and actions before reporting completion.

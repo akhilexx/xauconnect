@@ -37,22 +37,28 @@ export function AuditLogPanel() {
         }
 
         return (
-    <GlassCard variant="strong" padding="sm">
-      <ul className="divide-y divide-white/50">
-        {logs.map((log) => (
-          <li key={log.id} className="flex items-center gap-3 px-2 py-3">
-            <Badge tone="gold">{log.action}</Badge>
-            <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">
-              {log.resource ?? "—"}
-            </span>
-            <span className="font-mono text-xs text-ink-muted">
-              {log.actor ? shortenAddress(log.actor.address) : "system"}
-            </span>
-            <span className="text-xs text-ink-faint">{timeAgo(log.createdAt)}</span>
-          </li>
-        ))}
-      </ul>
-    </GlassCard>
+          <GlassCard variant="strong" padding="sm">
+            <h2 className="admin-title p-3">Recent changes</h2>
+            <ul className="divide-y divide-ink/5">
+              {logs.map((log) => (
+                <li
+                  key={log.id}
+                  className="grid grid-cols-2 items-center gap-x-3 gap-y-2 px-3 py-3 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto]"
+                >
+                  <Badge tone="gold" className="w-fit">
+                    {log.action}
+                  </Badge>
+                  <span className="min-w-0 break-all text-sm text-ink-soft">
+                    {log.resource ?? "—"}
+                  </span>
+                  <span className="font-mono text-xs text-ink-muted">
+                    {log.actor ? shortenAddress(log.actor.address) : "Unattributed"}
+                  </span>
+                  <span className="text-xs text-ink-faint">{timeAgo(log.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          </GlassCard>
         );
       }}
     </AdminQueryShell>

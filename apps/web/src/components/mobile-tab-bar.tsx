@@ -14,13 +14,7 @@ import { cn } from "@xauconnect/ui";
 import { BrandGlyph } from "./brand-glyph";
 import { SignInButton } from "./sign-in-button";
 import { useSessionStore } from "@/lib/store";
-import {
-  ADMIN_NAV,
-  MOBILE_TABS,
-  MORE_NAV,
-  isMoreActive,
-  isTabActive,
-} from "@/lib/site-nav";
+import { ADMIN_NAV, MOBILE_TABS, MORE_NAV, isMoreActive, isTabActive } from "@/lib/site-nav";
 
 export function MobileTabBar() {
   const pathname = usePathname();
@@ -85,6 +79,7 @@ export function MobileTabBar() {
                 "flex min-h-12 w-full flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-1 text-[10px] font-semibold tracking-tight transition-colors",
                 moreActive || moreOpen ? "text-ink" : "text-ink-muted",
               )}
+              aria-current={moreActive ? "location" : undefined}
               aria-expanded={moreOpen}
               aria-haspopup="dialog"
             >
@@ -151,6 +146,7 @@ export function MobileTabBar() {
                           <li key={href}>
                             <Link
                               href={href}
+                              aria-current={active ? "page" : undefined}
                               onClick={() => setMoreOpen(false)}
                               className={cn(
                                 "flex min-h-14 items-center gap-3 rounded-2xl px-3 py-3 text-sm font-semibold ring-1 transition-colors",

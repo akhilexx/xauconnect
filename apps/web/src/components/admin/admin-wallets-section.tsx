@@ -17,15 +17,21 @@ export function AdminWalletsSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      <nav className="glass inline-flex max-w-full gap-1 overflow-x-auto rounded-xl p-1">
+      <nav
+        aria-label="Wallet views"
+        className="glass grid w-full grid-cols-2 gap-1 rounded-2xl p-1 sm:inline-flex sm:w-fit"
+      >
         {TABS.map(({ id, label }) => (
           <button
             key={id}
             type="button"
+            aria-pressed={tab === id}
             onClick={() => setTab(id)}
             className={cn(
-              "rounded-lg px-3.5 py-1.5 text-sm font-semibold transition",
-              tab === id ? "bg-gold-gradient text-ink shadow-gold-glow" : "text-ink-muted hover:text-ink",
+              "min-h-11 rounded-xl px-3.5 py-2 text-sm font-semibold transition",
+              tab === id
+                ? "bg-gold-gradient text-ink shadow-gold-glow"
+                : "text-ink-muted hover:text-ink",
             )}
           >
             {label}

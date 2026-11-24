@@ -11,7 +11,7 @@ import { Badge, GlassButton, GlassCard, toast } from "@xauconnect/ui";
 import { api } from "@/lib/api";
 import { useAdminReady } from "@/lib/session";
 import { AdminQueryShell } from "./admin-query-shell";
-import { AdminFilterBar } from "./admin-filter-bar";
+import { AdminFilter, AdminFilterBar } from "./admin-filter-bar";
 import { AdminUserIdentity, AdminSocialLinks } from "./admin-user-identity";
 import { BrandGlyph } from "@/components/brand-glyph";
 
@@ -67,6 +67,7 @@ export function UsersTable() {
   return (
     <div className="flex flex-col gap-3">
       <AdminFilterBar
+        active={Boolean(search || role || kycStatus || chainKind)}
         search={search}
         onSearchChange={(v) => {
           setSearch(v);
@@ -75,47 +76,53 @@ export function UsersTable() {
         onClear={clearFilters}
         placeholder="Address, display name, Twitter, Telegram, Discord, website…"
       >
-        <select
-          value={role}
-          onChange={(e) => {
-            setRole(e.target.value);
-            setPage(1);
-          }}
-          className="glass h-9 rounded-xl px-3 text-xs font-semibold text-ink"
-          aria-label="Filter by role"
-        >
-          <option value="">All roles</option>
-          <option value="USER">User</option>
-          <option value="ADMIN">Admin</option>
-        </select>
-        <select
-          value={kycStatus}
-          onChange={(e) => {
-            setKycStatus(e.target.value);
-            setPage(1);
-          }}
-          className="glass h-9 rounded-xl px-3 text-xs font-semibold text-ink"
-          aria-label="Filter by KYC"
-        >
-          <option value="">All KYC</option>
-          <option value="NONE">None</option>
-          <option value="PENDING">Pending</option>
-          <option value="APPROVED">Approved</option>
-          <option value="REJECTED">Rejected</option>
-        </select>
-        <select
-          value={chainKind}
-          onChange={(e) => {
-            setChainKind(e.target.value);
-            setPage(1);
-          }}
-          className="glass h-9 rounded-xl px-3 text-xs font-semibold text-ink"
-          aria-label="Filter by chain kind"
-        >
-          <option value="">All chain kinds</option>
-          <option value="evm">EVM</option>
-          <option value="solana">Solana</option>
-        </select>
+        <AdminFilter label="Role">
+          <select
+            value={role}
+            onChange={(e) => {
+              setRole(e.target.value);
+              setPage(1);
+            }}
+            className="admin-control glass-field"
+            aria-label="Filter by role"
+          >
+            <option value="">All roles</option>
+            <option value="USER">User</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </AdminFilter>
+        <AdminFilter label="KYC status">
+          <select
+            value={kycStatus}
+            onChange={(e) => {
+              setKycStatus(e.target.value);
+              setPage(1);
+            }}
+            className="admin-control glass-field"
+            aria-label="Filter by KYC"
+          >
+            <option value="">All KYC</option>
+            <option value="NONE">None</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+        </AdminFilter>
+        <AdminFilter label="Wallet type">
+          <select
+            value={chainKind}
+            onChange={(e) => {
+              setChainKind(e.target.value);
+              setPage(1);
+            }}
+            className="admin-control glass-field"
+            aria-label="Filter by chain kind"
+          >
+            <option value="">All chain kinds</option>
+            <option value="evm">EVM</option>
+            <option value="solana">Solana</option>
+          </select>
+        </AdminFilter>
       </AdminFilterBar>
 
       <AdminQueryShell query={query} skeletonClass="h-72 w-full">
@@ -134,59 +141,72 @@ export function UsersTable() {
 
           return (
             <GlassCard variant="strong" padding="sm" className="overflow-x-auto">
-              <table className="w-full min-w-[880px] text-sm">
+              <h2 className="admin-title px-3 pb-3">User directory</h2>
+              <table className="admin-records" aria-label="User directory">
                 <thead>
-                  <tr className="border-b border-white/60 text-left text-[11px] uppercase tracking-wider text-ink-muted">
-                    <th className="px-3 py-2.5 font-semibold">User</th>
-                    <th className="px-3 py-2.5 font-semibold">Socials</th>
-                    <th className="px-3 py-2.5 font-semibold">Role</th>
-                    <th className="px-3 py-2.5 font-semibold">KYC</th>
-                    <th className="px-3 py-2.5 font-semibold">Kind</th>
-                    <th className="px-3 py-2.5 text-right font-semibold">Joined</th>
-                    <th className="px-3 py-2.5 text-right font-semibold">Last seen</th>
-                    <th className="px-3 py-2.5 text-right font-semibold"> </th>
+                  <tr>
+                    {["Identity", "Access", "Activity", "Social profiles", "Actions"].map(
+                      (label) => (
+                        <th key={label} scope="col">
+                          {label}
+                        </th>
+                      ),
+                    )}
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((user) => (
-                    <tr key={user.id} className="border-b border-white/40 last:border-0">
-                      <td className="px-3 py-3">
-                        <AdminUserIdentity
-                          address={user.address}
-                          profile={user}
-                          addressChars={8}
-                        />
+                    <tr key={user.id}>
+                      <td data-label="Identity" data-wide="title">
+                        <AdminUserIdentity address={user.address} profile={user} addressChars={8} />
+                        <span className="mt-1 block text-xs uppercase text-ink-muted">
+                          {user.chainKind}
+                        </span>
                       </td>
-                      <td className="px-3 py-3">
+                      <td data-label="Access">
+                        <div className="flex flex-wrap gap-1">
+                          <Badge tone={user.role === "ADMIN" ? "gold" : "neutral"}>
+                            {user.role}
+                          </Badge>
+                          <Badge tone={KYC_TONE[user.kycStatus] ?? "neutral"}>
+                            KYC: {user.kycStatus}
+                          </Badge>
+                        </div>
+                      </td>
+                      <td data-label="Activity">
+                        <div className="text-xs text-ink-soft">
+                          Last seen {timeAgo(user.lastSeenAt)}
+                        </div>
+                        <div className="mt-1 text-xs text-ink-muted">
+                          Joined {timeAgo(user.createdAt)}
+                        </div>
+                      </td>
+                      <td data-label="Social profiles">
                         <AdminSocialLinks profile={user} />
                       </td>
-                      <td className="px-3 py-3">
-                        <Badge tone={user.role === "ADMIN" ? "gold" : "neutral"}>{user.role}</Badge>
-                      </td>
-                      <td className="px-3 py-3">
-                        <Badge tone={KYC_TONE[user.kycStatus] ?? "neutral"}>{user.kycStatus}</Badge>
-                      </td>
-                      <td className="px-3 py-3 text-xs uppercase text-ink-muted">{user.chainKind}</td>
-                      <td className="px-3 py-3 text-right text-ink-muted">{timeAgo(user.createdAt)}</td>
-                      <td className="px-3 py-3 text-right text-ink-muted">{timeAgo(user.lastSeenAt)}</td>
-                      <td className="px-3 py-3 text-right">
-                        <GlassButton
-                          size="sm"
-                          variant="ghost"
-                          disabled={remove.isPending}
-                          aria-label="Delete user record"
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                `Delete user ${user.displayName ?? user.address}? Connected wallet links will be cleared.`,
+                      <td data-label="Actions">
+                        {user.role !== "ADMIN" ? (
+                          <GlassButton
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={remove.isPending}
+                            aria-label="Delete user record"
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Delete user ${user.displayName ?? user.address}? Connected wallet links will be cleared.`,
+                                )
                               )
-                            ) {
-                              remove.mutate(user.id);
-                            }
-                          }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-danger" />
-                        </GlassButton>
+                                remove.mutate(user.id);
+                            }}
+                          >
+                            <Trash2 size={15} className="text-danger" />
+                            Remove
+                          </GlassButton>
+                        ) : (
+                          <span className="text-xs text-ink-muted">Protected</span>
+                        )}
                       </td>
                     </tr>
                   ))}

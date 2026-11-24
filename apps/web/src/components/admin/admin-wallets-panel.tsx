@@ -6,8 +6,22 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Plus, Trash2, Wallet } from "lucide-react";
-import { CHAINS, getChainByKey, getChainLogoUrl, shortenAddress, formatUsd } from "@xauconnect/utils";
-import { Badge, ChainIcon, GlassButton, GlassCard, GlassDialog, Skeleton, toast } from "@xauconnect/ui";
+import {
+  CHAINS,
+  getChainByKey,
+  getChainLogoUrl,
+  shortenAddress,
+  formatUsd,
+} from "@xauconnect/utils";
+import {
+  Badge,
+  ChainIcon,
+  GlassButton,
+  GlassCard,
+  GlassDialog,
+  Skeleton,
+  toast,
+} from "@xauconnect/ui";
 import { api } from "@/lib/api";
 import { useAdminReady } from "@/lib/session";
 import { AdminInlineError } from "./admin-query-shell";
@@ -16,13 +30,7 @@ const PURPOSES = ["treasury", "fee_collector", "operations", "on_chain_vault"] a
 
 type WalletRow = Awaited<ReturnType<typeof api.adminWallets>>["wallets"][number];
 
-function WalletBalances({
-  w,
-  balancesLoading,
-}: {
-  w: WalletRow;
-  balancesLoading?: boolean;
-}) {
+function WalletBalances({ w, balancesLoading }: { w: WalletRow; balancesLoading?: boolean }) {
   if (balancesLoading && w.nativeBalance == null) {
     return <span className="text-ink-muted">…</span>;
   }
@@ -55,7 +63,7 @@ function WalletBalances({
 function purposeTone(purpose: string): "gold" | "success" | "neutral" {
   if (purpose === "on_chain_vault") return "gold";
   if (purpose === "fee_collector") return "gold";
-  if (purpose === "treasury") return "success";
+  if (purpose === "treasury") return "neutral";
   return "neutral";
 }
 
@@ -94,9 +102,7 @@ function WalletRowCard({
             color={chain?.color}
             size={18}
           />
-          <span className="truncate font-medium text-sm" style={{ color: chain?.color }}>
-            {chain?.name ?? w.chainKey}
-          </span>
+          <span className="truncate font-medium text-sm">{chain?.name ?? w.chainKey}</span>
         </div>
         <button
           onClick={() => onRemove(w.id)}
@@ -125,7 +131,7 @@ function WalletGroup({
   onRemove: (id: string) => void;
   balancesLoading?: boolean;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const head = rows[0];
   if (!head) return null;
 
@@ -133,6 +139,7 @@ function WalletGroup({
     <div className="overflow-hidden rounded-2xl border border-white/50 bg-white/30">
       <button
         type="button"
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-start gap-3 px-4 py-3 text-left"
       >
@@ -143,11 +150,9 @@ function WalletGroup({
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-ink">{head.label ?? groupKey}</span>
+            <span className="break-words font-semibold text-ink">{head.label ?? groupKey}</span>
             <Badge tone={purposeTone(head.purpose)}>{head.purpose.replace("_", " ")}</Badge>
-            {head.walletGroup && (
-              <Badge tone="neutral">{head.walletGroup.toUpperCase()}</Badge>
-            )}
+            {head.walletGroup && <Badge tone="neutral">{head.walletGroup.toUpperCase()}</Badge>}
           </div>
           <p className="mt-1 break-all font-mono text-[11px] leading-relaxed text-ink-muted sm:text-xs">
             {head.address}
@@ -174,7 +179,12 @@ function WalletGroup({
         <div className="border-t border-white/40 px-3 pb-3 sm:px-4">
           <div className="mt-2 flex flex-col gap-2 md:hidden">
             {rows.map((w) => (
-              <WalletRowCard key={w.id} w={w} onRemove={onRemove} balancesLoading={balancesLoading} />
+              <WalletRowCard
+                key={w.id}
+                w={w}
+                onRemove={onRemove}
+                balancesLoading={balancesLoading}
+              />
             ))}
           </div>
 
@@ -194,7 +204,7 @@ function WalletGroup({
                   return (
                     <tr key={w.id} className="border-t border-white/30">
                       <td className="py-2 pr-2">
-                        <span className="flex items-center gap-1.5 font-medium" style={{ color: chain?.color }}>
+                        <span className="flex items-center gap-1.5 font-medium">
                           <ChainIcon
                             name={chain?.name ?? w.chainKey}
                             src={getChainLogoUrl(w.chainKey)}
@@ -268,7 +278,8 @@ export function AdminWalletsPanel() {
   const [purpose, setPurpose] = useState<(typeof PURPOSES)[number]>("treasury");
 
   const add = useMutation({
-    mutationFn: () => api.adminAddWallet({ chainKey, address: address.trim(), label: label || undefined, purpose }),
+    mutationFn: () =>
+      api.adminAddWallet({ chainKey, address: address.trim(), label: label || undefined, purpose }),
     onSuccess: () => {
       toast.success("Wallet added");
       setOpen(false);
@@ -294,12 +305,7 @@ export function AdminWalletsPanel() {
   if (!adminReady || query.isLoading) return <Skeleton className="h-64 w-full" />;
 
   if (query.isError) {
-    return (
-      <AdminInlineError
-        error={query.error as Error}
-        onRetry={() => void query.refetch()}
-      />
-    );
+    return <AdminInlineError error={query.error as Error} onRetry={() => void query.refetch()} />;
   }
 
   return (
@@ -307,9 +313,9 @@ export function AdminWalletsPanel() {
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           <p className="text-sm text-ink-muted">
-            Protocol wallets for treasury, fee collection, and operations — grouped by key across chains.
+            Protocol wallets for treasury, fee collection, and operations — grouped by key across
+            chains.
           </p>
-
         </div>
         <GlassButton size="sm" className="w-full shrink-0 sm:w-auto" onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4" /> Add wallet
@@ -318,9 +324,7 @@ export function AdminWalletsPanel() {
 
       {groups.length === 0 ? (
         <GlassCard variant="strong" padding="lg" className="text-center text-ink-muted">
-          No protocol wallets registered. Run{" "}
-          <code className="text-ink">pnpm protocol:wallets:generate</code> then{" "}
-          <code className="text-ink">pnpm protocol:wallets:seed</code>, or add manually.
+          No protocol wallets registered. Add a wallet to start a group.
         </GlassCard>
       ) : (
         <div className="flex flex-col gap-3">
@@ -329,7 +333,10 @@ export function AdminWalletsPanel() {
               key={key}
               groupKey={key}
               rows={rows}
-              onRemove={(id) => remove.mutate(id)}
+              onRemove={(id) => {
+                if (window.confirm("Remove this wallet from the protocol registry?"))
+                  remove.mutate(id);
+              }}
               balancesLoading={balancesLoading}
             />
           ))}
@@ -337,62 +344,75 @@ export function AdminWalletsPanel() {
       )}
 
       <GlassDialog open={open} onClose={() => setOpen(false)} title="Add protocol wallet">
-        <div className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wider text-ink-muted">
-            Chain
-            <select
-              value={chainKey}
-              onChange={(e) => setChainKey(e.target.value)}
-              className="glass-field rounded-2xl px-3 py-2.5 text-sm capitalize text-ink focus:outline-none focus:ring-2 focus:ring-gold/50"
-            >
-              {CHAINS.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wider text-ink-muted">
-            Wallet address
+        <form
+          aria-label="Add protocol wallet"
+          className="grid gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (address.trim() && !add.isPending) add.mutate();
+          }}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="admin-field">
+              <span className="admin-field-label">Network</span>
+              <select
+                value={chainKey}
+                onChange={(e) => setChainKey(e.target.value)}
+                className="admin-control glass-field"
+              >
+                {CHAINS.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="admin-field">
+              <span className="admin-field-label">Purpose</span>
+              <select
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value as typeof purpose)}
+                className="admin-control glass-field"
+              >
+                {PURPOSES.map((p) => (
+                  <option key={p} value={p}>
+                    {p.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="admin-field">
+            <span className="admin-field-label">Wallet address</span>
             <input
+              required
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="0x… or Solana base58"
-              className="glass-field rounded-2xl px-3 py-2.5 font-mono text-sm text-ink focus:outline-none focus:ring-2 focus:ring-gold/50"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder={chainKey === "solana" ? "Solana address" : "0x…"}
+              className="admin-control glass-field font-mono"
             />
           </label>
-          <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wider text-ink-muted">
-            Label (optional)
+          <label className="admin-field">
+            <span className="admin-field-label">Label (optional)</span>
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Main treasury"
-              className="glass-field rounded-2xl px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-gold/50"
+              className="admin-control glass-field"
             />
           </label>
-          <label className="flex flex-col gap-1.5 text-xs font-semibold uppercase tracking-wider text-ink-muted">
-            Purpose
-            <select
-              value={purpose}
-              onChange={(e) => setPurpose(e.target.value as (typeof PURPOSES)[number])}
-              className="glass-field rounded-2xl px-3 py-2.5 text-sm capitalize text-ink focus:outline-none focus:ring-2 focus:ring-gold/50"
-            >
-              {PURPOSES.map((p) => (
-                <option key={p} value={p}>
-                  {p.replace("_", " ")}
-                </option>
-              ))}
-            </select>
-          </label>
-          <GlassButton
-            className="w-full"
-            loading={add.isPending}
-            disabled={!address.trim()}
-            onClick={() => add.mutate()}
-          >
-            <Wallet className="h-4 w-4" /> Register wallet
-          </GlassButton>
-        </div>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-ink/5 pt-4">
+            <GlassButton type="button" variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </GlassButton>
+            <GlassButton type="submit" loading={add.isPending} disabled={!address.trim()}>
+              <Wallet size={16} />
+              Register wallet
+            </GlassButton>
+          </div>
+        </form>
       </GlassDialog>
     </div>
   );

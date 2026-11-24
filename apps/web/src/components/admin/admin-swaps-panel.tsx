@@ -19,7 +19,7 @@ import { Badge, ChainIcon, GlassCard, Skeleton, StatCard, cn } from "@xauconnect
 import { api } from "@/lib/api";
 import { useAdminReady } from "@/lib/session";
 import { AdminQueryShell } from "./admin-query-shell";
-import { AdminFilterBar } from "./admin-filter-bar";
+import { AdminFilter, AdminFilterBar } from "./admin-filter-bar";
 import { BrandGlyph } from "@/components/brand-glyph";
 
 type SwapRow = Awaited<ReturnType<typeof api.adminSwaps>>["swaps"][number];
@@ -38,7 +38,7 @@ function SwapDetailRow({ swap }: { swap: SwapRow }) {
   return (
     <>
       <tr className="border-b border-white/40 last:border-0">
-        <td className="px-3 py-3">
+        <td data-label="Time" className="px-3 py-3">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -53,7 +53,7 @@ function SwapDetailRow({ swap }: { swap: SwapRow }) {
             <span className="text-xs text-ink-muted">{timeAgo(swap.createdAt)}</span>
           </button>
         </td>
-        <td className="px-3 py-3">
+        <td data-label="Network" className="px-3 py-3">
           <div className="flex items-center gap-2">
             {chain ? (
               <ChainIcon name={chain.name} src={getChainLogoUrl(chain.key)} size={18} />
@@ -61,22 +61,26 @@ function SwapDetailRow({ swap }: { swap: SwapRow }) {
             <span className="text-sm font-semibold">{swap.chainName}</span>
           </div>
         </td>
-        <td className="px-3 py-3 text-sm">
+        <td data-label="Pair" data-wide="title" className="px-3 py-3 text-sm">
           <span className="font-semibold">{swap.amountInFormatted}</span>{" "}
           <span className="text-ink-muted">{swap.tokenInSymbol}</span>
           <span className="mx-1 text-ink-muted">→</span>
           <span className="font-semibold">{swap.amountOutFormatted}</span>{" "}
           <span className="text-ink-muted">{swap.tokenOutSymbol}</span>
         </td>
-        <td className="px-3 py-3">
+        <td data-label="Status" className="px-3 py-3">
           <Badge tone={STATUS_TONE[swap.status] ?? "neutral"}>{swap.status}</Badge>
         </td>
-        <td className="px-3 py-3 text-right text-sm tabular-nums">{swap.volumePriced ? formatUsd(swap.volumeUsd) : "Unpriced"}</td>
-        <td className="px-3 py-3 text-right text-sm tabular-nums text-gold-deep">
+        <td data-label="Volume" className="px-3 py-3 text-right text-sm tabular-nums">
+          {swap.volumePriced ? formatUsd(swap.volumeUsd) : "Unpriced"}
+        </td>
+        <td data-label="Fee" className="px-3 py-3 text-right text-sm tabular-nums text-gold-deep">
           {swap.feePriced ? formatUsd(swap.feeUsd) : "Unpriced"}
         </td>
-        <td className="px-3 py-3 text-sm text-ink-muted">{swap.dexLabel}</td>
-        <td className="px-3 py-3">
+        <td data-label="Route" className="px-3 py-3 text-sm text-ink-muted">
+          {swap.dexLabel}
+        </td>
+        <td data-label="Source" className="px-3 py-3">
           <Badge tone={swap.clientSource === "agent" ? "gold" : "neutral"}>
             {swap.clientSource ?? "—"}
           </Badge>
@@ -99,21 +103,26 @@ function SwapDetailRow({ swap }: { swap: SwapRow }) {
                 <dd className="mt-0.5">{swap.userDisplayName ?? "—"}</dd>
               </div>
               <div>
-                <dt className="font-semibold uppercase tracking-wide text-ink-muted">Route / DEX</dt>
+                <dt className="font-semibold uppercase tracking-wide text-ink-muted">
+                  Route / DEX
+                </dt>
                 <dd className="mt-0.5">
-                  {swap.dexLabel}{" "}
-                  <span className="font-mono text-ink-muted">({swap.dexId})</span>
+                  {swap.dexLabel} <span className="font-mono text-ink-muted">({swap.dexId})</span>
                 </dd>
               </div>
               <div>
-                <dt className="font-semibold uppercase tracking-wide text-ink-muted">Protocol fee</dt>
+                <dt className="font-semibold uppercase tracking-wide text-ink-muted">
+                  Protocol fee
+                </dt>
                 <dd className="mt-0.5">
                   {swap.protocolFeeFormatted} ({formatBps(swap.feeBps)})
                 </dd>
               </div>
               <div>
                 <dt className="font-semibold uppercase tracking-wide text-ink-muted">Fee USD</dt>
-                <dd className="mt-0.5 font-semibold text-gold-deep">{swap.feePriced ? formatUsd(swap.feeUsd) : "Unpriced"}</dd>
+                <dd className="mt-0.5 font-semibold text-gold-deep">
+                  {swap.feePriced ? formatUsd(swap.feeUsd) : "Unpriced"}
+                </dd>
               </div>
               <div className="sm:col-span-2">
                 <dt className="font-semibold uppercase tracking-wide text-ink-muted">Token in</dt>
@@ -128,19 +137,27 @@ function SwapDetailRow({ swap }: { swap: SwapRow }) {
                 </dd>
               </div>
               <div>
-                <dt className="font-semibold uppercase tracking-wide text-ink-muted">Amount in (base)</dt>
+                <dt className="font-semibold uppercase tracking-wide text-ink-muted">
+                  Amount in (base)
+                </dt>
                 <dd className="mt-0.5 font-mono">{swap.amountIn}</dd>
               </div>
               <div>
-                <dt className="font-semibold uppercase tracking-wide text-ink-muted">Amount out (base)</dt>
+                <dt className="font-semibold uppercase tracking-wide text-ink-muted">
+                  Amount out (base)
+                </dt>
                 <dd className="mt-0.5 font-mono">{swap.amountOut}</dd>
               </div>
               <div>
-                <dt className="font-semibold uppercase tracking-wide text-ink-muted">Protocol fee (base)</dt>
+                <dt className="font-semibold uppercase tracking-wide text-ink-muted">
+                  Protocol fee (base)
+                </dt>
                 <dd className="mt-0.5 font-mono">{swap.protocolFee}</dd>
               </div>
               <div className="sm:col-span-2 lg:col-span-3">
-                <dt className="font-semibold uppercase tracking-wide text-ink-muted">Transaction</dt>
+                <dt className="font-semibold uppercase tracking-wide text-ink-muted">
+                  Transaction
+                </dt>
                 <dd className="mt-0.5 flex flex-wrap items-center gap-2">
                   {swap.txHash ? (
                     <>
@@ -163,12 +180,16 @@ function SwapDetailRow({ swap }: { swap: SwapRow }) {
               </div>
               {swap.failureReason ? (
                 <div className="sm:col-span-2 lg:col-span-3">
-                  <dt className="font-semibold uppercase tracking-wide text-danger">Failure reason</dt>
+                  <dt className="font-semibold uppercase tracking-wide text-danger">
+                    Failure reason
+                  </dt>
                   <dd className="mt-0.5 text-danger">{swap.failureReason}</dd>
                 </div>
               ) : null}
               <div>
-                <dt className="font-semibold uppercase tracking-wide text-ink-muted">Recorded at</dt>
+                <dt className="font-semibold uppercase tracking-wide text-ink-muted">
+                  Recorded at
+                </dt>
                 <dd className="mt-0.5">{new Date(swap.createdAt).toLocaleString()}</dd>
               </div>
             </dl>
@@ -237,6 +258,7 @@ export function AdminSwapsPanel() {
               </div>
 
               <AdminFilterBar
+                active={Boolean(search || chainKey || source)}
                 search={search}
                 onSearchChange={(v) => {
                   setSearch(v);
@@ -245,36 +267,40 @@ export function AdminSwapsPanel() {
                 onClear={clearFilters}
                 placeholder="Tx hash, wallet, token, DEX, failure reason…"
               >
-                <select
-                  value={chainKey}
-                  onChange={(e) => {
-                    setChainKey(e.target.value);
-                    setPage(1);
-                  }}
-                  className="glass h-9 rounded-xl px-3 text-xs font-semibold text-ink"
-                  aria-label="Filter by chain"
-                >
-                  <option value="">All chains</option>
-                  {CHAINS.map((c) => (
-                    <option key={c.key} value={c.key}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={source}
-                  onChange={(e) => {
-                    setSource(e.target.value);
-                    setPage(1);
-                  }}
-                  className="glass h-9 rounded-xl px-3 text-xs font-semibold text-ink"
-                  aria-label="Filter by source"
-                >
-                  <option value="">All sources</option>
-                  <option value="web">Web</option>
-                  <option value="agent">Agent</option>
-                  <option value="api">API</option>
-                </select>
+                <AdminFilter label="Network">
+                  <select
+                    value={chainKey}
+                    onChange={(e) => {
+                      setChainKey(e.target.value);
+                      setPage(1);
+                    }}
+                    className="admin-control glass-field"
+                    aria-label="Filter by chain"
+                  >
+                    <option value="">All chains</option>
+                    {CHAINS.map((c) => (
+                      <option key={c.key} value={c.key}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </AdminFilter>
+                <AdminFilter label="Source">
+                  <select
+                    value={source}
+                    onChange={(e) => {
+                      setSource(e.target.value);
+                      setPage(1);
+                    }}
+                    className="admin-control glass-field"
+                    aria-label="Filter by source"
+                  >
+                    <option value="">All sources</option>
+                    <option value="web">Web</option>
+                    <option value="agent">Agent</option>
+                    <option value="api">API</option>
+                  </select>
+                </AdminFilter>
               </AdminFilterBar>
 
               {swaps.length === 0 ? (
@@ -284,7 +310,7 @@ export function AdminSwapsPanel() {
                 </GlassCard>
               ) : (
                 <GlassCard variant="strong" padding="sm" className="overflow-x-auto">
-                  <table className="w-full min-w-[880px] text-sm">
+                  <table className="admin-records">
                     <thead>
                       <tr className="border-b border-white/60 text-left text-[11px] uppercase tracking-wider text-ink-muted">
                         <th className="px-3 py-2.5 font-semibold">Time</th>

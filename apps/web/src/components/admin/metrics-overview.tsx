@@ -21,6 +21,7 @@ import {
   Waves,
 } from "lucide-react";
 import { getChainByKey } from "@xauconnect/utils";
+import { GlassCard, StatCard } from "@xauconnect/ui";
 import { api } from "@/lib/api";
 import { useAdminReady } from "@/lib/session";
 import { AdminQueryShell } from "./admin-query-shell";
@@ -60,25 +61,27 @@ export function MetricsOverview() {
         const cards = [
           {
             label: "Settled volume",
-            value: money(m.totalVolumeUsd),
+            value: m.totalVolumeUsd,
+            format: money,
             sub: "Gross input · USD estimate",
             icon: Waves,
           },
           {
             label: "Fees collected",
-            value: money(m.feesEarnedUsd),
+            value: m.feesEarnedUsd,
+            format: money,
             sub: "Received by the protocol",
             icon: CircleDollarSign,
           },
           {
             label: "Verified swaps",
-            value: m.swapCount.toLocaleString(),
+            value: m.swapCount,
             sub: "Distinct transactions",
             icon: CheckCheck,
           },
           {
             label: "Active networks",
-            value: String(chains.filter((c) => c.swaps > 0).length),
+            value: chains.filter((c) => c.swaps > 0).length,
             sub: "With a verified settlement",
             icon: Layers3,
           },
@@ -107,19 +110,20 @@ export function MetricsOverview() {
             </div>
             <div className="ops-kpis">
               {cards.map((c) => (
-                <article key={c.label}>
-                  <div>
-                    <c.icon size={18} />
-                    <span>All time</span>
-                  </div>
-                  <p>{c.label}</p>
-                  <strong>{c.value}</strong>
-                  <small>{c.sub}</small>
-                </article>
+                <StatCard
+                  key={c.label}
+                  label={c.label}
+                  value={c.value}
+                  format={"format" in c ? c.format : undefined}
+                  icon={<c.icon size={18} />}
+                  delta={c.sub}
+                  deltaTone="neutral"
+                  className="min-w-0 [&_p]:break-words"
+                />
               ))}
             </div>
             <div className="ops-charts">
-              <article className="ops-card">
+              <GlassCard variant="strong" className="ops-card">
                 <div className="ops-cardhead">
                   <div>
                     <small>{days === 365 ? "Monthly" : "Daily"} settlements</small>
@@ -160,11 +164,16 @@ export function MetricsOverview() {
                       <AreaChart data={points} margin={{ left: 0, right: 8, top: 12, bottom: 0 }}>
                         <defs>
                           <linearGradient id="ops-fill" x1="0" y1="0" x2="0" y2="1">
-                            <stop stopColor="#c89d46" stopOpacity={0.48} />
-                            <stop offset="1" stopColor="#c89d46" stopOpacity={0.03} />
+                            <stop stopColor="var(--xau-gold)" stopOpacity={0.48} />
+                            <stop offset="1" stopColor="var(--xau-gold)" stopOpacity={0.03} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid vertical={false} stroke="#e5e8e3" strokeDasharray="3 5" />
+                        <CartesianGrid
+                          vertical={false}
+                          stroke="var(--xau-ink-faint)"
+                          strokeOpacity={0.25}
+                          strokeDasharray="3 5"
+                        />
                         <XAxis
                           dataKey="date"
                           tickFormatter={dateLabel}
@@ -195,7 +204,7 @@ export function MetricsOverview() {
                         <Area
                           type="linear"
                           dataKey={series}
-                          stroke="#956724"
+                          stroke="var(--xau-gold-deep)"
                           fill="url(#ops-fill)"
                           strokeWidth={2.4}
                           isAnimationActive={false}
@@ -214,8 +223,8 @@ export function MetricsOverview() {
                   {days === 365 ? "Monthly" : "Daily"} totals in UTC{" "}
                   <span>{days === 365 ? "12 month window" : days + " day window"}</span>
                 </footer>
-              </article>
-              <article className="ops-card">
+              </GlassCard>
+              <GlassCard variant="strong" className="ops-card">
                 <div className="ops-cardhead">
                   <div>
                     <small>Network distribution</small>
@@ -240,10 +249,10 @@ export function MetricsOverview() {
                     </div>
                   ))}
                 </div>
-              </article>
+              </GlassCard>
             </div>
             <div className="ops-charts">
-              <article className="ops-card">
+              <GlassCard variant="strong" className="ops-card">
                 <div className="ops-cardhead">
                   <div>
                     <small>Accounting coverage</small>
@@ -270,8 +279,8 @@ export function MetricsOverview() {
                     Inspect ledger <ArrowUpRight size={13} />
                   </a>
                 </footer>
-              </article>
-              <article className="ops-card">
+              </GlassCard>
+              <GlassCard variant="strong" className="ops-card">
                 <div className="ops-cardhead">
                   <div>
                     <small>Platform</small>
@@ -295,7 +304,7 @@ export function MetricsOverview() {
                     Treasury & wallets <ArrowUpRight size={13} />
                   </a>
                 </footer>
-              </article>
+              </GlassCard>
             </div>
           </div>
         );

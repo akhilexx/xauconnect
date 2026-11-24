@@ -11,7 +11,7 @@ import { Badge, GlassButton, GlassCard, toast } from "@xauconnect/ui";
 import { api } from "@/lib/api";
 import { useAdminReady } from "@/lib/session";
 import { AdminQueryShell } from "./admin-query-shell";
-import { AdminFilterBar } from "./admin-filter-bar";
+import { AdminFilter, AdminFilterBar } from "./admin-filter-bar";
 import { AdminUserIdentity, AdminSocialLinks } from "./admin-user-identity";
 import { BrandGlyph } from "@/components/brand-glyph";
 
@@ -49,9 +49,7 @@ function groupBalancesByChain(balances: TokenBalance[]): Map<string, TokenBalanc
 
 function parseBalances(raw: unknown): TokenBalance[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((b): b is TokenBalance =>
-    Boolean(b && typeof b === "object" && "symbol" in b),
-  );
+  return raw.filter((b): b is TokenBalance => Boolean(b && typeof b === "object" && "symbol" in b));
 }
 
 function mergeChainViews(
@@ -102,47 +100,43 @@ function WalletRow({
   return (
     <>
       <tr className="border-b border-white/40 last:border-0">
-        <td className="px-3 py-3">
+        <td data-wide="title" data-label="Wallet">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="flex items-start gap-1 text-left"
             aria-expanded={open}
+            aria-label={(open ? "Hide" : "Show") + " wallet details"}
+            className="inline-flex min-h-10 items-center gap-2 text-left"
           >
-            {open ? (
-              <ChevronDown className="mt-1 h-3.5 w-3.5 shrink-0 text-ink-muted" />
-            ) : (
-              <ChevronRight className="mt-1 h-3.5 w-3.5 shrink-0 text-ink-muted" />
-            )}
+            {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
             <AdminUserIdentity address={wallet.address} profile={wallet.profile} />
           </button>
-        </td>
-        <td className="px-3 py-3">
           <AdminSocialLinks profile={wallet.profile} />
         </td>
-        <td className="px-3 py-3">
-          <Badge tone={wallet.chainKind === "solana" ? "gold" : "neutral"}>
-            {wallet.chainKind.toUpperCase()}
-          </Badge>
+        <td data-label="Connection">
+          <span className="text-sm font-semibold">
+            {wallet.walletApp ?? wallet.connectorName ?? "Unknown wallet app"}
+          </span>
+          <span className="mt-1 block text-xs text-ink-muted">
+            {chain?.name ?? wallet.lastChainKey ?? wallet.chainKind.toUpperCase()}
+            {chainsSeen > 1 ? ` · +${chainsSeen - 1} networks` : ""}
+          </span>
         </td>
-        <td className="px-3 py-3 text-sm font-medium">{wallet.walletApp ?? wallet.connectorName ?? "—"}</td>
-        <td className="px-3 py-3 text-sm text-ink-muted">
-          {chain?.name ?? wallet.lastChainKey ?? "—"}
-          {chainsSeen > 1 ? (
-            <span className="ml-1 text-[10px] text-gold-deep">+{chainsSeen - 1} chains</span>
-          ) : null}
+        <td data-label="Holdings">
+          <strong className="tabular-nums">{formatUsd(wallet.portfolioUsd)}</strong>
+          <span className="mt-1 block text-xs text-ink-muted">
+            {wallet.nativeBalance
+              ? `${Number(wallet.nativeBalance).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${wallet.nativeSymbol ?? ""}`
+              : "—"}
+          </span>
         </td>
-        <td className="px-3 py-3 text-right font-semibold tabular-nums">
-          {formatUsd(wallet.portfolioUsd)}
+        <td data-label="Activity">
+          <span className="text-sm">{wallet.connectCount} sessions</span>
+          <span className="mt-1 block text-xs text-ink-muted">
+            {timeAgo(wallet.lastConnectedAt)}
+          </span>
         </td>
-        <td className="px-3 py-3 text-right text-sm tabular-nums text-ink-muted">
-          {wallet.nativeBalance
-            ? `${Number(wallet.nativeBalance).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${wallet.nativeSymbol ?? ""}`
-            : "—"}
-        </td>
-        <td className="px-3 py-3 text-center text-sm tabular-nums">{wallet.connectCount}</td>
-        <td className="px-3 py-3 text-right text-xs text-ink-muted">{timeAgo(wallet.lastConnectedAt)}</td>
-        <td className="px-3 py-3 text-right">
+        <td data-label="Actions">
           <GlassButton
             size="sm"
             variant="ghost"
@@ -159,19 +153,24 @@ function WalletRow({
             }}
           >
             <Trash2 className="h-3.5 w-3.5 text-danger" />
+            Remove
           </GlassButton>
         </td>
       </tr>
       {open && (
         <tr className="border-b border-white/30 bg-white/20">
-          <td colSpan={10} className="px-4 py-3">
+          <td colSpan={5} className="px-4 py-3">
             <dl className="grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-3">
               <div>
-                <dt className="font-semibold uppercase tracking-wide text-ink-muted">Full address</dt>
+                <dt className="font-semibold uppercase tracking-wide text-ink-muted">
+                  Full address
+                </dt>
                 <dd className="mt-0.5 break-all font-mono">{wallet.address}</dd>
               </div>
               <div>
-                <dt className="font-semibold uppercase tracking-wide text-ink-muted">Display name</dt>
+                <dt className="font-semibold uppercase tracking-wide text-ink-muted">
+                  Display name
+                </dt>
                 <dd className="mt-0.5">{wallet.profile?.displayName ?? "—"}</dd>
               </div>
               <div>
@@ -199,41 +198,46 @@ function WalletRow({
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
                   Holdings by chain
                 </p>
-                {chainHoldings.map(({ chainKey: ck, chainUsd, balances: chainBalances, activity }) => {
-                  const c = getChainByKey(ck);
-                  return (
-                    <div key={ck}>
-                      <p className="text-xs font-semibold text-ink">
-                        {c?.name ?? ck}{" "}
-                        <span className="font-normal text-ink-muted">({formatUsd(chainUsd)})</span>
-                        {activity?.nativeBalance ? (
-                          <span className="ml-2 font-normal text-ink-muted">
-                            · {Number(activity.nativeBalance).toLocaleString(undefined, {
-                              maximumFractionDigits: 4,
-                            })}{" "}
-                            {activity.nativeSymbol ?? c?.nativeSymbol ?? ""}
+                {chainHoldings.map(
+                  ({ chainKey: ck, chainUsd, balances: chainBalances, activity }) => {
+                    const c = getChainByKey(ck);
+                    return (
+                      <div key={ck}>
+                        <p className="text-xs font-semibold text-ink">
+                          {c?.name ?? ck}{" "}
+                          <span className="font-normal text-ink-muted">
+                            ({formatUsd(chainUsd)})
                           </span>
-                        ) : null}
-                      </p>
-                      {chainBalances.length > 0 ? (
-                        <ul className="mt-1 flex flex-wrap gap-2">
-                          {chainBalances.slice(0, 8).map((b) => (
-                            <li
-                              key={`${ck}-${b.symbol}-${b.balanceFormatted}`}
-                              className="rounded-lg bg-white/60 px-2.5 py-1 text-xs ring-1 ring-black/5"
-                            >
-                              <span className="font-semibold">{b.symbol}</span>{" "}
-                              <span className="text-ink-muted">{b.balanceFormatted}</span>{" "}
-                              <span className="text-gold-deep">({formatUsd(b.usdValue)})</span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="mt-1 text-xs text-ink-muted">No tracked token balances</p>
-                      )}
-                    </div>
-                  );
-                })}
+                          {activity?.nativeBalance ? (
+                            <span className="ml-2 font-normal text-ink-muted">
+                              ·{" "}
+                              {Number(activity.nativeBalance).toLocaleString(undefined, {
+                                maximumFractionDigits: 4,
+                              })}{" "}
+                              {activity.nativeSymbol ?? c?.nativeSymbol ?? ""}
+                            </span>
+                          ) : null}
+                        </p>
+                        {chainBalances.length > 0 ? (
+                          <ul className="mt-1 flex flex-wrap gap-2">
+                            {chainBalances.slice(0, 8).map((b) => (
+                              <li
+                                key={`${ck}-${b.symbol}-${b.balanceFormatted}`}
+                                className="rounded-lg bg-white/60 px-2.5 py-1 text-xs ring-1 ring-black/5"
+                              >
+                                <span className="font-semibold">{b.symbol}</span>{" "}
+                                <span className="text-ink-muted">{b.balanceFormatted}</span>{" "}
+                                <span className="text-gold-deep">({formatUsd(b.usdValue)})</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-1 text-xs text-ink-muted">No tracked token balances</p>
+                        )}
+                      </div>
+                    );
+                  },
+                )}
               </div>
             )}
           </td>
@@ -311,6 +315,7 @@ export function ConnectedWalletsPanel() {
       </div>
 
       <AdminFilterBar
+        active={Boolean(search || chainKind || lastChainKey || walletApp)}
         search={search}
         onSearchChange={(v) => {
           setSearch(v);
@@ -319,46 +324,52 @@ export function ConnectedWalletsPanel() {
         onClear={clearFilters}
         placeholder="Address, name, wallet app, IP, Twitter, Telegram…"
       >
-        <select
-          value={chainKind}
-          onChange={(e) => {
-            setChainKind(e.target.value);
-            setPage(1);
-          }}
-          className="glass h-9 rounded-xl px-3 text-xs font-semibold text-ink"
-          aria-label="Filter by type"
-        >
-          <option value="">All types</option>
-          <option value="evm">EVM</option>
-          <option value="solana">Solana</option>
-        </select>
-        <select
-          value={lastChainKey}
-          onChange={(e) => {
-            setLastChainKey(e.target.value);
-            setPage(1);
-          }}
-          className="glass h-9 rounded-xl px-3 text-xs font-semibold text-ink"
-          aria-label="Filter by chain"
-        >
-          <option value="">All chains</option>
-          {evmChains.map((c) => (
-            <option key={c.key} value={c.key}>
-              {c.name}
-            </option>
-          ))}
-          <option value="solana">Solana</option>
-        </select>
-        <input
-          value={walletApp}
-          onChange={(e) => {
-            setWalletApp(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Wallet app"
-          className="glass h-9 w-32 rounded-xl px-3 text-xs font-semibold text-ink"
-          aria-label="Filter by wallet app"
-        />
+        <AdminFilter label="Wallet type">
+          <select
+            value={chainKind}
+            onChange={(e) => {
+              setChainKind(e.target.value);
+              setPage(1);
+            }}
+            className="admin-control glass-field"
+            aria-label="Filter by type"
+          >
+            <option value="">All types</option>
+            <option value="evm">EVM</option>
+            <option value="solana">Solana</option>
+          </select>
+        </AdminFilter>
+        <AdminFilter label="Last network">
+          <select
+            value={lastChainKey}
+            onChange={(e) => {
+              setLastChainKey(e.target.value);
+              setPage(1);
+            }}
+            className="admin-control glass-field"
+            aria-label="Filter by chain"
+          >
+            <option value="">All chains</option>
+            {evmChains.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.name}
+              </option>
+            ))}
+            <option value="solana">Solana</option>
+          </select>
+        </AdminFilter>
+        <AdminFilter label="Wallet app">
+          <input
+            value={walletApp}
+            onChange={(e) => {
+              setWalletApp(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Wallet app"
+            className="admin-control glass-field"
+            aria-label="Filter by wallet app"
+          />
+        </AdminFilter>
       </AdminFilterBar>
 
       <AdminQueryShell query={query} skeletonClass="h-72 w-full">
@@ -377,19 +388,15 @@ export function ConnectedWalletsPanel() {
 
           return (
             <GlassCard variant="strong" padding="sm" className="overflow-x-auto">
-              <table className="w-full min-w-[960px] text-sm">
+              <h2 className="admin-title px-3 pb-3">Wallet directory</h2>
+              <table className="admin-records" aria-label="Wallet directory">
                 <thead>
-                  <tr className="border-b border-white/60 text-left text-[11px] uppercase tracking-wider text-ink-muted">
-                    <th className="px-3 py-2.5 font-semibold">User / wallet</th>
-                    <th className="px-3 py-2.5 font-semibold">Socials</th>
-                    <th className="px-3 py-2.5 font-semibold">Type</th>
-                    <th className="px-3 py-2.5 font-semibold">App</th>
-                    <th className="px-3 py-2.5 font-semibold">Chain</th>
-                    <th className="px-3 py-2.5 text-right font-semibold">Portfolio</th>
-                    <th className="px-3 py-2.5 text-right font-semibold">Native</th>
-                    <th className="px-3 py-2.5 text-center font-semibold">Sessions</th>
-                    <th className="px-3 py-2.5 text-right font-semibold">Last seen</th>
-                    <th className="px-3 py-2.5 text-right font-semibold"> </th>
+                  <tr>
+                    {["Wallet", "Connection", "Holdings", "Activity", "Actions"].map((label) => (
+                      <th key={label} scope="col">
+                        {label}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>

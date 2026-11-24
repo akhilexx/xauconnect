@@ -47,42 +47,48 @@ export function ListingQueue() {
         }
 
         return (
-    <div className="grid gap-3 md:grid-cols-2">
-      {queue.map((item) => {
-        const chain = getChainByKey(item.chainKey);
-        return (
-          <GlassCard key={item.id} className="flex items-center gap-3">
-            <TokenIcon symbol={item.symbol} size={40} />
-            <span className="min-w-0 flex-1">
-              <span className="block font-bold">
-                {item.symbol} <span className="font-normal text-ink-muted">· {item.name}</span>
-              </span>
-              <span className="block text-xs text-ink-muted">
-                {chain?.name ?? item.chainKey} · {shortenAddress(item.address)} · requested{" "}
-                {timeAgo(item.createdAt)}
-              </span>
-            </span>
-            <div className="flex gap-1.5">
-              <GlassButton
-                size="sm"
-                disabled={decide.isPending}
-                onClick={() => decide.mutate({ tokenId: item.id, decision: "approve" })}
-              >
-                <Check className="h-3.5 w-3.5" />
-              </GlassButton>
-              <GlassButton
-                size="sm"
-                variant="danger"
-                disabled={decide.isPending}
-                onClick={() => decide.mutate({ tokenId: item.id, decision: "reject" })}
-              >
-                <X className="h-3.5 w-3.5" />
-              </GlassButton>
-            </div>
-          </GlassCard>
-        );
-      })}
-    </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {queue.map((item) => {
+              const chain = getChainByKey(item.chainKey);
+              return (
+                <GlassCard
+                  key={item.id}
+                  className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3"
+                >
+                  <TokenIcon symbol={item.symbol} size={40} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-bold">
+                      {item.symbol}{" "}
+                      <span className="font-normal text-ink-muted">· {item.name}</span>
+                    </span>
+                    <span className="block text-xs text-ink-muted">
+                      {chain?.name ?? item.chainKey} · {shortenAddress(item.address)} · requested{" "}
+                      {timeAgo(item.createdAt)}
+                    </span>
+                  </span>
+                  <div className="col-span-2 flex flex-wrap justify-end gap-2 border-t border-ink/5 pt-3">
+                    <GlassButton
+                      size="sm"
+                      disabled={decide.isPending}
+                      onClick={() => decide.mutate({ tokenId: item.id, decision: "approve" })}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      Approve
+                    </GlassButton>
+                    <GlassButton
+                      size="sm"
+                      variant="danger"
+                      disabled={decide.isPending}
+                      onClick={() => decide.mutate({ tokenId: item.id, decision: "reject" })}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Reject
+                    </GlassButton>
+                  </div>
+                </GlassCard>
+              );
+            })}
+          </div>
         );
       }}
     </AdminQueryShell>

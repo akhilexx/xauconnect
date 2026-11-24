@@ -61,6 +61,7 @@ export function isTabActive(pathname: string, href: string): boolean {
 
 export function isMoreActive(pathname: string): boolean {
   return (
+    isTabActive(pathname, ADMIN_CONSOLE_PATH) ||
     pathname.startsWith("/buy-crypto") ||
     pathname.startsWith("/sell-crypto") ||
     pathname.startsWith("/liquidity") ||

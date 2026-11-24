@@ -59,13 +59,18 @@ export function AdminLoginPanel() {
   }
 
   return (
-    <GlassCard variant="strong" padding="lg" className="relative overflow-hidden">
-      <div className="rounded-2xl bg-[#17372e] px-6 py-7 text-white">
-        <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#dac78d]">XAUConnect / Operations</p>
-        <h1 className="font-serif text-4xl tracking-tight">Operator sign in</h1>
-        <p className="mt-2 text-sm text-[#d2dece]">Access the settlement ledger and protocol controls.</p>
+    <GlassCard variant="gradient" padding="lg" className="mx-auto my-4 w-full max-w-md sm:my-10">
+      <div className="flex items-start gap-3">
+        <BrandGlyph src={BRAND_NAV_ICONS.admin} size={36} />
+        <div>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight">
+            Admin <span className="gold-text">sign in</span>
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            Access the settlement ledger and protocol controls.
+          </p>
+        </div>
       </div>
-
       {sessionNotice && (
         <p className="relative mt-4 rounded-2xl bg-gold/10 px-4 py-3 text-center text-sm font-semibold text-ink ring-1 ring-gold/30">
           {sessionNotice}
@@ -84,7 +89,7 @@ export function AdminLoginPanel() {
             variant="ghost"
             size="sm"
             onClick={() => {
-              void api.signOut().catch(()=>{});
+              void api.signOut().catch(() => {});
               clearSession();
               clearAdminQueries();
               setSessionNotice("You have been signed out.");
@@ -156,8 +161,8 @@ export function AdminLoginPanel() {
           </GlassButton>
 
           <p className="text-center text-xs text-ink-faint">
-            Admins with an allowlisted wallet can also connect &amp; sign in from the navbar —
-            the ADMIN role is granted automatically.
+            Admins with an allowlisted wallet can also connect &amp; sign in from the navbar — the
+            ADMIN role is granted automatically.
           </p>
         </form>
       )}

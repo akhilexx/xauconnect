@@ -34,6 +34,7 @@ function DesktopNavLink({
     <Link
       href={href}
       title={label}
+      aria-current={active ? "page" : undefined}
       className={cn(
         "group relative flex h-9 shrink-0 items-center gap-2 rounded-full px-3 text-[13px] font-medium tracking-tight",
         "transition-colors duration-200",
@@ -77,7 +78,10 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 min-w-0 border-b border-white/70 bg-white/60 pt-[env(safe-area-inset-top)] backdrop-blur-glass">
-      <nav className="flex h-14 w-full min-w-0 items-center gap-2 px-4 sm:h-[4.25rem] sm:gap-4 sm:px-6 lg:px-8">
+      <nav
+        aria-label="Site navigation"
+        className="flex h-14 w-full min-w-0 items-center gap-2 px-4 sm:h-[4.25rem] sm:gap-4 sm:px-6 lg:px-8"
+      >
         <Link
           href="/"
           className="group flex min-w-0 shrink-0 items-center gap-2 rounded-full px-1 py-1 transition-colors duration-200 hover:bg-white/70 sm:gap-2.5 sm:px-1.5"
@@ -95,8 +99,8 @@ export function Navbar() {
           </span>
         </Link>
 
-        <div className="hidden min-w-0 flex-1 items-center justify-center overflow-x-auto md:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex items-center gap-0.5 rounded-full bg-white/50 p-1 shadow-[0_1px_2px_rgba(21,23,28,0.04)] ring-1 ring-ink/[0.06]">
+        <div className="hidden min-w-0 flex-1 items-center overflow-x-auto md:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mx-auto flex w-max shrink-0 items-center gap-0.5 rounded-full bg-white/50 p-1 shadow-[0_1px_2px_rgba(21,23,28,0.04)] ring-1 ring-ink/[0.06]">
             {DESKTOP_NAV.map(({ href, label, mark }) => (
               <DesktopNavLink
                 key={href}

@@ -1,28 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  Activity,
-  ArrowLeft,
-  ArrowLeftRight,
-  Blocks,
-  BookOpenCheck,
-  ChevronRight,
-  CreditCard,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Settings2,
-  ShieldCheck,
-  Users,
-  Wallet,
-  X,
-} from "lucide-react";
-import Link from "next/link";
+import { ChevronDown, LogOut, ShieldCheck } from "lucide-react";
+import { BRAND_NAV_ICONS } from "@xauconnect/utils";
+import { BrandGlyph } from "@/components/brand-glyph";
+import { PageHeader } from "@/components/page-header";
 import { useRouter } from "next/navigation";
-import { Skeleton } from "@xauconnect/ui";
+import { Badge, GlassButton, GlassCard, Skeleton, cn } from "@xauconnect/ui";
 import { logoutAdmin, useAdminSessionGuard } from "@/lib/session";
-import { BrandMark } from "@/components/brand-logo";
 import { MetricsOverview } from "./metrics-overview";
 import { FeeConfigPanel } from "./fee-config-panel";
 import { ListingQueue } from "./listing-queue";
@@ -38,7 +23,7 @@ const pages = [
   {
     id: "overview",
     name: "Overview",
-    icon: LayoutDashboard,
+    mark: BRAND_NAV_ICONS.metrics,
     group: "Monitor",
     desc: "Settlement activity and protocol health.",
     panel: MetricsOverview,
@@ -46,7 +31,7 @@ const pages = [
   {
     id: "swaps",
     name: "Swap ledger",
-    icon: ArrowLeftRight,
+    mark: BRAND_NAV_ICONS.swap,
     group: "Monitor",
     desc: "Inspect settled amounts, collected fees and transaction receipts.",
     panel: AdminSwapsPanel,
@@ -54,7 +39,7 @@ const pages = [
   {
     id: "fiat",
     name: "Fiat activity",
-    icon: CreditCard,
+    mark: BRAND_NAV_ICONS.buySell,
     group: "Monitor",
     desc: "Follow buy and sell orders through provider settlement.",
     panel: FiatTransactionsPanel,
@@ -62,7 +47,7 @@ const pages = [
   {
     id: "agents",
     name: "API activity",
-    icon: Activity,
+    mark: BRAND_NAV_ICONS.agents,
     group: "Monitor",
     desc: "Request traffic, integrations and execution activity.",
     panel: AdminApiAgentsPanel,
@@ -70,7 +55,7 @@ const pages = [
   {
     id: "wallets",
     name: "Wallets",
-    icon: Wallet,
+    mark: BRAND_NAV_ICONS.wallet,
     group: "Operations",
     desc: "Review treasury holdings and connected wallets.",
     panel: AdminWalletsSection,
@@ -78,7 +63,7 @@ const pages = [
   {
     id: "fees",
     name: "Fee settings",
-    icon: Settings2,
+    mark: BRAND_NAV_ICONS.fees,
     group: "Operations",
     desc: "Manage protocol rates across networks.",
     panel: FeeConfigPanel,
@@ -86,7 +71,7 @@ const pages = [
   {
     id: "listings",
     name: "Listing queue",
-    icon: Blocks,
+    mark: BRAND_NAV_ICONS.admin,
     group: "Operations",
     desc: "Review tokens awaiting a listing decision.",
     panel: ListingQueue,
@@ -94,7 +79,7 @@ const pages = [
   {
     id: "users",
     name: "Users",
-    icon: Users,
+    mark: BRAND_NAV_ICONS.users,
     group: "Governance",
     desc: "Find accounts, review identity and manage access.",
     panel: UsersTable,
@@ -102,7 +87,7 @@ const pages = [
   {
     id: "audit",
     name: "Audit trail",
-    icon: BookOpenCheck,
+    mark: BRAND_NAV_ICONS.audit,
     group: "Governance",
     desc: "Review administrative decisions and changes.",
     panel: AuditLogPanel,
@@ -119,7 +104,7 @@ export function AdminDashboard() {
   const [section, setSection] = useState<Section>("overview"),
     [open, setOpen] = useState(false);
   const toggle = useRef<HTMLButtonElement>(null),
-    heading = useRef<HTMLHeadingElement>(null);
+    heading = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const sync = () => {
       setSection(sectionFromHash());
@@ -149,92 +134,99 @@ export function AdminDashboard() {
       </div>
     );
   return (
-    <div className="ops">
-      <a className="ops-skip" href="#ops-main">
-        Skip to content
-      </a>
-      <aside className="ops-rail">
-        <div className="ops-brand">
-          <BrandMark size={36} />
-          <div>
-            <strong>XAUConnect</strong>
-            <small>Operator workspace</small>
-          </div>
+    <div className="admin-workspace mx-auto grid w-full max-w-[100rem] min-w-0 items-start gap-4 lg:grid-cols-[12.5rem_minmax(0,1fr)] lg:gap-6">
+      <GlassCard
+        padding="sm"
+        className="min-w-0 lg:sticky lg:top-[calc(5rem+env(safe-area-inset-top))] lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto"
+      >
+        <div className="flex items-center gap-2 px-2 py-1.5">
+          <BrandGlyph src={BRAND_NAV_ICONS.admin} size={28} />
+          <span className="font-display text-base font-extrabold tracking-tight">
+            Admin console
+          </span>
           <button
             ref={toggle}
-            className="ops-toggle"
-            aria-controls="ops-navigation"
+            type="button"
+            aria-label={open ? "Close admin sections" : "Open admin sections"}
+            aria-controls="admin-navigation"
             aria-expanded={open}
-            aria-label={open ? "Close navigation" : "Open navigation"}
             onClick={() => setOpen(!open)}
+            className="ml-auto flex min-h-11 items-center gap-1 rounded-full bg-white/70 px-3 text-xs font-semibold text-ink ring-1 ring-ink/10 lg:hidden"
           >
-            {open ? <X /> : <Menu />}
+            Sections{" "}
+            <ChevronDown size={14} className={cn("transition-transform", open && "rotate-180")} />
           </button>
         </div>
-        <div id="ops-navigation" className={"ops-navwrap" + (open ? " is-open" : "")}>
+        <div
+          id="admin-navigation"
+          className={cn(
+            "border-t border-ink/[0.06] pt-2 lg:mt-2 lg:block",
+            open ? "block" : "hidden",
+          )}
+        >
           <nav aria-label="Admin sections">
             {["Monitor", "Operations", "Governance"].map((group) => (
-              <div className="ops-navgroup" key={group}>
-                <span>{group}</span>
-                {pages
-                  .filter((p) => p.group === group)
-                  .map((p) => (
-                    <a
-                      key={p.id}
-                      href={"#" + p.id}
-                      aria-current={p.id === section ? "page" : undefined}
-                      onClick={() => {
-                        setSection(p.id);
-                        setOpen(false);
-                        requestAnimationFrame(() =>
-                          heading.current?.focus({ preventScroll: true }),
-                        );
-                      }}
-                    >
-                      <p.icon size={16} />
-                      {p.name}
-                      <ChevronRight size={13} />
-                    </a>
-                  ))}
+              <div key={group} className="mb-2">
+                <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+                  {group}
+                </p>
+                <div className="grid grid-cols-2 gap-1 lg:grid-cols-1">
+                  {pages
+                    .filter((p) => p.group === group)
+                    .map((p) => (
+                      <a
+                        key={p.id}
+                        href={"#" + p.id}
+                        aria-current={p.id === section ? "page" : undefined}
+                        onClick={() => {
+                          setSection(p.id);
+                          setOpen(false);
+                          requestAnimationFrame(() => {
+                            heading.current?.focus({ preventScroll: true });
+                            heading.current?.scrollIntoView({
+                              block: "nearest",
+                              behavior: "instant",
+                            });
+                          });
+                        }}
+                        className={cn(
+                          "flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-colors",
+                          p.id === section
+                            ? "bg-white/90 text-ink shadow-sm ring-1 ring-gold/45"
+                            : "text-ink-muted hover:bg-white/75 hover:text-ink",
+                        )}
+                      >
+                        <BrandGlyph src={p.mark} size={19} />
+                        {p.name}
+                      </a>
+                    ))}
+                </div>
               </div>
             ))}
           </nav>
-          <div className="ops-railfoot">
-            <Link href="/">
-              <ArrowLeft size={16} />
-              Back to site
-            </Link>
-            <button onClick={() => logoutAdmin(router, "signout")}>
-              <LogOut size={16} />
-              Sign out
-            </button>
+          <div className="mt-3 border-t border-ink/[0.06] pt-2">
+            <GlassButton size="sm" variant="ghost" onClick={() => logoutAdmin(router, "signout")}>
+              <LogOut size={14} /> Sign out
+            </GlassButton>
           </div>
         </div>
-      </aside>
-      <div className="ops-work" id="ops-main">
-        <div className="ops-top">
-          <span>
-            Workspace <ChevronRight size={12} /> {page.group} <ChevronRight size={12} />{" "}
-            <b>{page.name}</b>
-          </span>
-          <span>
-            <ShieldCheck size={15} /> Admin session
-          </span>
+      </GlassCard>
+      <div className="min-w-0">
+        <div
+          ref={heading}
+          tabIndex={-1}
+          className="mb-4 flex min-w-0 flex-wrap items-start justify-between gap-3 outline-none sm:mb-5"
+        >
+          <PageHeader description={page.desc}>
+            <span className="gold-text">{page.name}</span>
+          </PageHeader>
+          <Badge tone="neutral">
+            <ShieldCheck size={13} /> Admin session
+          </Badge>
         </div>
-        <div className="ops-content">
-          <header className="ops-heading">
-            <small>
-              {page.group} / {String(pages.indexOf(page) + 1).padStart(2, "0")}
-            </small>
-            <h1 tabIndex={-1} ref={heading}>
-              {page.name}
-            </h1>
-            <p>{page.desc}</p>
-          </header>
-          <section key={section} className="ops-enter" aria-label={page.name}>
-            <Panel />
-          </section>
-        </div>
+        <section key={section} className="admin-section min-w-0" aria-label={page.name}>
+          <Panel />
+        </section>
       </div>
     </div>
   );
