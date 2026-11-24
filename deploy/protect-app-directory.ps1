@@ -3,6 +3,7 @@
 $ErrorActionPreference='Stop'
 $root='C:\xauconnect'
 $acl=Get-Acl -LiteralPath $root
+$oldRules=$acl.GetSecurityDescriptorSddlForm([System.Security.AccessControl.AccessControlSections]::Access)
 $acl.SetAccessRuleProtection($true,$false)
 $publicSids=@('S-1-5-11','S-1-5-32-545','S-1-1-0')
 foreach($ace in @($acl.GetAccessRules($true,$false,[System.Security.Principal.SecurityIdentifier]))){
@@ -13,12 +14,10 @@ foreach($sid in $trusted){
   $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid,'FullControl','ContainerInherit, ObjectInherit','None','Allow'))
 }
 # No generic local account requires filesystem access; the HTTP servers have their own identities.
-Set-Acl -LiteralPath $root -AclObject $acl
-# Old Windows tar extractions left explicit user/group grants on individual
-# files and directories. Removing grants at the root alone cannot revoke those.
-# /L acts on links themselves rather than following them out of this checkout.
-& icacls.exe "$root\*" /remove:g '*S-1-5-11' '*S-1-5-32-545' '*S-1-1-0' /T /C /L /Q
-if($LASTEXITCODE -ne 0){throw "Could not remove all broad grants from the application tree"}
+if($acl.GetSecurityDescriptorSddlForm([System.Security.AccessControl.AccessControlSections]::Access) -ne $oldRules){Set-Acl -LiteralPath $root -AclObject $acl}
+# Some old archive extractions installed explicit grants on child files.
+Add-Type -Path (Join-Path $PSScriptRoot 'AppAccessSweep.cs')
+[AppAccessSweep]::Apply($root)
 foreach($p in @($root,"$root\backend\src\index.ts","$root\apps\web\.next\BUILD_ID")){
   $broad=@((Get-Acl -LiteralPath $p).GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier]) | Where-Object {
     $_.AccessControlType -eq 'Allow' -and $publicSids -contains $_.IdentityReference.Value -and ($_.FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::WriteData)
