@@ -15,7 +15,7 @@ import {
   ArrowUpRight,
   CheckCheck,
   CircleDollarSign,
-  Layers3,
+  Users,
   RefreshCw,
   ShieldCheck,
   Waves,
@@ -79,19 +79,13 @@ export function MetricsOverview() {
             sub: "Distinct transactions",
             icon: CheckCheck,
           },
-          {
-            label: "Active networks",
-            value: chains.filter((c) => c.swaps > 0).length,
-            sub: "With a verified settlement",
-            icon: Layers3,
-          },
         ];
         return (
           <div className="ops-overview">
             <div className="ops-strip">
               <span>
                 <i />
-                Settlement ledger
+                Overview metrics
               </span>
               <button
                 aria-label="Refresh metrics"
@@ -121,6 +115,19 @@ export function MetricsOverview() {
                   className="min-w-0 [&_p]:break-words"
                 />
               ))}
+              <a
+                href="#users"
+                className="group block min-w-0 rounded-glass focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-gold-dark"
+              >
+                <StatCard
+                  label="Registered users"
+                  value={m.totalUsers}
+                  format={(n) => n.toLocaleString("en-US")}
+                  icon={<Users size={18} aria-hidden="true" />}
+                  delta="View user directory →"
+                  className="h-full min-w-0 transition-shadow group-hover:ring-1 group-hover:ring-gold/40 [&_p]:break-words"
+                />
+              </a>
             </div>
             <div className="ops-charts">
               <GlassCard variant="strong" className="ops-card">
@@ -289,7 +296,7 @@ export function MetricsOverview() {
                 </div>
                 <dl className="ops-list">
                   {[
-                    ["Registered users", m.totalUsers],
+                    ["Active networks", chains.filter((c) => c.swaps > 0).length],
                     ["Users active in 24h", m.activeUsers24h],
                     ["Recorded launches", m.tokensLaunched],
                   ].map(([s, v]) => (
