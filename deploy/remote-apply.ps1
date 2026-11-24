@@ -5,6 +5,7 @@ $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine')
 Set-Location C:\xauconnect
 
 tar -xzf deploy.tgz
+if ($LASTEXITCODE -ne 0) {throw "Archive extraction failed"}
 Remove-Item deploy.tgz -Force
 
 # Deploys extract over the tree and do not delete files that left the repo.
@@ -27,23 +28,30 @@ if (Test-Path $sitemapDir) {
 }
 
 $nssm = 'C:\tools\nssm\nssm.exe'
-# Unlock Prisma's query engine DLL before generate (backend holds it while running).
-& $nssm stop xauconnect-backend
-Start-Sleep -Seconds 2
-
-pnpm install --frozen-lockfile
-pnpm db:generate
-
-# Backend reads backend\.env — keep it synced with the server-managed root .env
+# Exclude operator files from uploads and protect local leftovers from older releases.
+& .\deploy\protect-private-files.ps1
+# The existing production database predates Prisma migration history. Apply only
+# reviewed, additive SQL. Never accept a schema reset or overwrite operator fee settings.
 if (Test-Path .\.env) { Copy-Item .\.env .\backend\.env -Force }
-
-# Apply schema + seed when DATABASE_URL is configured
-if ((Get-Content .\.env -ErrorAction SilentlyContinue) -match '^DATABASE_URL=') {
-  pnpm --filter @xauconnect/backend db:push
-  pnpm --filter @xauconnect/backend db:seed
+if (-not ((Get-Content .\backend\.env -ErrorAction SilentlyContinue) -match '^DATABASE_URL=')) {
+  throw "Production database configuration missing"
 }
-
-& $nssm start xauconnect-backend
+pnpm --filter @xauconnect/backend exec prisma db execute --schema ../prisma/schema.prisma --file ../prisma/migrations/20261124000000_swap_settlement/migration.sql
+if ($LASTEXITCODE -ne 0) { throw "Settlement migration failed; services were not stopped" }
+& $nssm stop xauconnect-backend
+try {
+  Start-Sleep -Seconds 2
+  pnpm install --frozen-lockfile
+  if ($LASTEXITCODE -ne 0) { throw "Dependency install failed" }
+  pnpm db:generate
+  if ($LASTEXITCODE -ne 0) { throw "Prisma client generation failed" }
+} finally { & $nssm start xauconnect-backend }
+# Caddy owns public ingress. Avoid exposing Next's fallback API proxy directly.
+$webArgs = ((& $nssm get xauconnect-web AppParameters) -join '').Replace([string][char]0,'').Trim()
+if ($webArgs -match 'next start -p 3000$') {
+  & $nssm set xauconnect-web AppParameters "$webArgs -H 127.0.0.1"
+  if ($LASTEXITCODE -ne 0) { throw "Could not bind web listener to loopback" }
+}
 & $nssm restart xauconnect-web
 
 function Wait-Status([string]$url) {

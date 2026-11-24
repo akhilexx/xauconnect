@@ -59,13 +59,13 @@ export function FiatTransactionsPanel() {
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <GlassCard padding="sm" className="text-center sm:col-span-2">
-              <p className="text-[10px] uppercase tracking-wider text-ink-muted">Fiat volume</p>
+              <p className="text-[10px] uppercase tracking-wider text-ink-muted">Completed USD orders</p>
               <p className="font-display text-lg font-bold text-ink">
                 ${data.summary.volumeUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </p>
             </GlassCard>
             <GlassCard padding="sm" className="text-center sm:col-span-2">
-              <p className="text-[10px] uppercase tracking-wider text-ink-muted">Partner fees earned</p>
+              <p className="text-[10px] uppercase tracking-wider text-ink-muted">Estimated partner fees · completed USD orders</p>
               <p className="gold-text font-display text-lg font-bold">
                 ${data.summary.feeUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </p>
@@ -104,7 +104,7 @@ export function FiatTransactionsPanel() {
                   <th className="px-3 py-2.5 font-semibold">Provider</th>
                   <th className="px-3 py-2.5 font-semibold">Fiat</th>
                   <th className="px-3 py-2.5 font-semibold">Crypto</th>
-                  <th className="px-3 py-2.5 font-semibold">Our fee</th>
+                  <th className="px-3 py-2.5 font-semibold">Estimated fee</th>
                   <th className="px-3 py-2.5 font-semibold">Country</th>
                   <th className="px-3 py-2.5 font-semibold">Status</th>
                 </tr>

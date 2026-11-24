@@ -19,15 +19,15 @@ async function fetchCoingeckoPriceMap(): Promise<Record<string, number>> {
   if (COINGECKO_IDS.length === 0) return {};
   try {
     const res = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${COINGECKO_IDS.join(",")}&vs_currencies=usd`,
+      `https://api.coingecko.com/api/v3/simple/price?ids=${COINGECKO_IDS.join(",")}&vs_currencies=usd&include_last_updated_at=true`,
       { signal: AbortSignal.timeout(4_000) },
     );
     if (!res.ok) return {};
-    const data = (await res.json()) as Record<string, { usd?: number }>;
+    const data = (await res.json()) as Record<string, { usd?: number; last_updated_at?: number }>;
     const out: Record<string, number> = {};
     for (const [id, row] of Object.entries(data)) {
       const usd = row?.usd;
-      if (usd != null && usd > 0) out[id] = usd;
+      if (usd != null && Number.isFinite(usd) && usd > 0 && Math.abs(Date.now()/1000-(row.last_updated_at??0))<1800) out[id] = usd;
     }
     return out;
   } catch {
@@ -54,20 +54,28 @@ export async function tokenUsdPrice(token: Pick<TokenInfo, "symbol" | "address" 
   return demoUsdPrice(token.coingeckoId, token.address);
 }
 
-/** Estimate swap notional from tokenIn base units. */
-export async function estimateVolumeUsd(
-  chainKey: string,
-  tokenInAddress: string,
-  amountInBase: string,
-): Promise<number> {
-  const token = DEFAULT_TOKENS.find(
-    (t) => t.chainKey === chainKey && t.address.toLowerCase() === tokenInAddress.toLowerCase(),
-  );
-  if (!token) return 0;
-  const raw = BigInt(amountInBase);
-  if (raw <= 0n) return 0;
-  const formatted = Number(raw) / 10 ** token.decimals;
-  if (!Number.isFinite(formatted)) return 0;
-  const price = await tokenUsdPrice(token);
-  return formatted * price;
+/** Contemporaneous prices for accounting: curated contract/mint identity, no demo or peg fallback. */
+export async function settlementPrices(chainKey: string, addresses: string[]) {
+  const prices = {...await coingeckoPriceMap().catch(()=>({}) as Record<string,number>)};
+  const missing = DEFAULT_TOKENS.filter(t=>t.chainKey===chainKey && t.coingeckoId && !prices[t.coingeckoId] &&
+    addresses.some(a=>chainKey==="solana"?a===t.address:a.toLowerCase()===t.address.toLowerCase())).map(t=>"coingecko:"+t.coingeckoId);
+  if(missing.length){
+    const ids=missing.sort().join(",");
+    const fallback=await cached("ledger:prices:"+ids,90,async()=>{
+      const r=await fetch("https://coins.llama.fi/prices/current/"+encodeURIComponent(ids),{signal:AbortSignal.timeout(3500)});
+      if(!r.ok)return {};
+      const data=await r.json() as {coins:Record<string,{price:number;confidence:number;timestamp:number}>};
+      return Object.fromEntries(Object.entries(data.coins).filter(([k,p])=>missing.includes(k) && p.confidence>=0.95 &&
+        Math.abs(Date.now()/1000-p.timestamp)<1800 && Number.isFinite(p.price) && p.price>0).map(([k,p])=>[k.slice("coingecko:".length),p.price]));
+    }).catch(()=>({}));
+    Object.assign(prices,fallback);
+  }
+  const result: Record<string, { usd: number; decimals: number }> = {};
+  for (const address of addresses) {
+    const token = DEFAULT_TOKENS.find(t => t.chainKey === chainKey &&
+      (chainKey === "solana" ? t.address === address : t.address.toLowerCase() === address.toLowerCase()));
+    const usd = token?.coingeckoId ? prices[token.coingeckoId] : undefined;
+    if (token && usd && Number.isFinite(usd) && usd > 0) result[address] = { usd, decimals: token.decimals };
+  }
+  return result;
 }

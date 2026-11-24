@@ -71,9 +71,9 @@ function SwapDetailRow({ swap }: { swap: SwapRow }) {
         <td className="px-3 py-3">
           <Badge tone={STATUS_TONE[swap.status] ?? "neutral"}>{swap.status}</Badge>
         </td>
-        <td className="px-3 py-3 text-right text-sm tabular-nums">{formatUsd(swap.volumeUsd)}</td>
+        <td className="px-3 py-3 text-right text-sm tabular-nums">{swap.volumePriced ? formatUsd(swap.volumeUsd) : "Unpriced"}</td>
         <td className="px-3 py-3 text-right text-sm tabular-nums text-gold-deep">
-          {formatUsd(swap.feeUsd)}
+          {swap.feePriced ? formatUsd(swap.feeUsd) : "Unpriced"}
         </td>
         <td className="px-3 py-3 text-sm text-ink-muted">{swap.dexLabel}</td>
         <td className="px-3 py-3">
@@ -113,7 +113,7 @@ function SwapDetailRow({ swap }: { swap: SwapRow }) {
               </div>
               <div>
                 <dt className="font-semibold uppercase tracking-wide text-ink-muted">Fee USD</dt>
-                <dd className="mt-0.5 font-semibold text-gold-deep">{formatUsd(swap.feeUsd)}</dd>
+                <dd className="mt-0.5 font-semibold text-gold-deep">{swap.feePriced ? formatUsd(swap.feeUsd) : "Unpriced"}</dd>
               </div>
               <div className="sm:col-span-2">
                 <dt className="font-semibold uppercase tracking-wide text-ink-muted">Token in</dt>
@@ -184,7 +184,6 @@ export function AdminSwapsPanel() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [chainKey, setChainKey] = useState("");
-  const [status, setStatus] = useState("");
   const [source, setSource] = useState("");
   const deferredSearch = useDeferredValue(search.trim());
 
@@ -192,7 +191,6 @@ export function AdminSwapsPanel() {
     page,
     q: deferredSearch || undefined,
     chainKey: chainKey || undefined,
-    status: status || undefined,
     source: source || undefined,
   };
 
@@ -206,7 +204,6 @@ export function AdminSwapsPanel() {
   const clearFilters = () => {
     setSearch("");
     setChainKey("");
-    setStatus("");
     setSource("");
     setPage(1);
   };
@@ -218,8 +215,7 @@ export function AdminSwapsPanel() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-ink-muted">
-        Every swap attempt recorded from the app — confirmed and failed — with route, fees, and
-        on-chain tx links.
+        Finalized swaps with verified asset movements. Expand a row for its receipt and fee asset.
       </p>
 
       <AdminQueryShell query={query} skeletonClass="h-72 w-full">
@@ -230,15 +226,10 @@ export function AdminSwapsPanel() {
 
           return (
             <>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <StatCard
                   label="Confirmed"
                   value={summary.confirmed}
-                  format={(n) => Math.round(n).toLocaleString()}
-                />
-                <StatCard
-                  label="Failed"
-                  value={summary.failed}
                   format={(n) => Math.round(n).toLocaleString()}
                 />
                 <StatCard label="Volume (confirmed)" value={summary.volumeUsd} format={formatUsd} />
@@ -269,21 +260,6 @@ export function AdminSwapsPanel() {
                       {c.name}
                     </option>
                   ))}
-                </select>
-                <select
-                  value={status}
-                  onChange={(e) => {
-                    setStatus(e.target.value);
-                    setPage(1);
-                  }}
-                  className="glass h-9 rounded-xl px-3 text-xs font-semibold text-ink"
-                  aria-label="Filter by status"
-                >
-                  <option value="">All statuses</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="failed">Failed</option>
-                  <option value="submitted">Submitted</option>
-                  <option value="quoted">Quoted</option>
                 </select>
                 <select
                   value={source}

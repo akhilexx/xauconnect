@@ -51,6 +51,7 @@ import {
   toast,
   cn,
 } from "@xauconnect/ui";
+import { reportSubmission } from "@/lib/settlement-outbox";
 import { api } from "@/lib/api";
 import { userFacingError } from "@/lib/user-errors";
 import { showSwapConfirmedToast } from "@/lib/swap-success";
@@ -502,15 +503,14 @@ export function SwapPanel({
     const balanceRaw = tokenInBalanceQuery.data?.raw;
     if (balanceRaw) {
       const bal = BigInt(balanceRaw);
-      if (bal > 0n && amount > bal) amount = bal;
+      if (amount > bal) throw new Error("INSUFFICIENT_FUNDS");
     }
     if (tokenIn && isCatalogNative(fromChainKey, tokenIn.address)) {
       const reserve =
         sourceKind === "solana"
           ? parseUnits("0.01", tokenIn.decimals)
           : parseUnits("0.001", tokenIn.decimals);
-      if (amount > reserve) amount -= reserve;
-      else amount = 0n;
+      if (balanceRaw != null && amount + reserve > BigInt(balanceRaw)) throw new Error("INSUFFICIENT_FUNDS_FOR_GAS");
     }
     if (amount <= 0n) throw new Error("INSUFFICIENT_FUNDS");
     return amount.toString();
@@ -568,7 +568,7 @@ export function SwapPanel({
         functionName: "approve",
         args: [built.evm.to as `0x${string}`, BigInt(amountInBase)],
       });
-      await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash, confirmations: 1 });
+      if ((await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash, confirmations: 1 })).status !== "success") throw new Error("Approval reverted");
     }
 
     const hash = await sendTransactionAsync({
@@ -576,6 +576,7 @@ export function SwapPanel({
       data: built.evm.data as `0x${string}`,
       value: BigInt(built.evm.value ?? "0"),
     });
+    reportSubmission(built, hash);
     const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, confirmations: 1 });
     if (receipt.status === "reverted") throw new Error("SWAP_REVERTED");
     return hash;
@@ -600,7 +601,7 @@ export function SwapPanel({
         functionName: "approve",
         args: [built.evm.to as `0x${string}`, BigInt(amountInBase)],
       });
-      await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash, confirmations: 1 });
+      if ((await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash, confirmations: 1 })).status !== "success") throw new Error("Approval reverted");
     }
 
     const hash = await sendTransactionAsync({
@@ -657,9 +658,10 @@ export function SwapPanel({
         bridgeHash,
         execRequest.toChainKey,
       );
-      if (!bridged) markCrossChainStepsComplete(setCrossChainSteps);
+      if (!bridged) return;
     } else {
-      markCrossChainStepsComplete(setCrossChainSteps);
+      toast.info("Origin transaction confirmed. Destination settlement is unverified.");
+      return;
     }
 
     if (raw.hop3) {
@@ -779,9 +781,10 @@ export function SwapPanel({
         );
         if (built.quoteId) {
           const bridged = await pollCrossChainStatus(built.quoteId, fromChainKey, sig, toChainKey);
-          if (!bridged) markCrossChainStepsComplete(setCrossChainSteps);
+          if (!bridged) return;
         } else {
-          markCrossChainStepsComplete(setCrossChainSteps);
+          toast.info("Origin transaction confirmed. Destination settlement is unverified.");
+          return;
         }
         showSwapConfirmedToast({
           chainKey: fromChainKey,
@@ -826,7 +829,7 @@ export function SwapPanel({
           functionName: "approve",
           args: [built.evm.to as `0x${string}`, BigInt(effectiveAmountIn)],
         });
-        await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash, confirmations: 1 });
+        if ((await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash, confirmations: 1 })).status !== "success") throw new Error("Approval reverted");
       }
 
       setCrossChainSteps((steps) =>
@@ -856,13 +859,14 @@ export function SwapPanel({
         ),
       );
 
-      await waitForTransactionReceipt(wagmiConfig, { hash, confirmations: 1 });
+      if ((await waitForTransactionReceipt(wagmiConfig, { hash, confirmations: 1 })).status !== "success") throw new Error("SWAP_REVERTED");
 
       if (built.quoteId) {
         const bridged = await pollCrossChainStatus(built.quoteId, fromChainKey, hash, toChainKey);
-        if (!bridged) markCrossChainStepsComplete(setCrossChainSteps);
+        if (!bridged) return;
       } else {
-        markCrossChainStepsComplete(setCrossChainSteps);
+        toast.info("Origin transaction confirmed. Destination settlement is unverified.");
+        return;
       }
 
       showSwapConfirmedToast({
@@ -896,11 +900,12 @@ export function SwapPanel({
           originTxHash,
           destinationChainKey,
         );
-        if (status.status === "completed") {
+        if (status.status === "completed" && status.destinationTxHash) {
           markCrossChainStepsComplete(setCrossChainSteps, status.destinationTxHash);
           return true;
         }
         if (status.status === "failed") {
+          toast.error("Bridge settlement failed");
           setCrossChainSteps((steps) =>
             steps.map((s) => (s.id === "bridge" || s.id === "dest" ? { ...s, status: "failed" } : s)),
           );
@@ -910,6 +915,7 @@ export function SwapPanel({
         /* keep polling */
       }
     }
+    toast.info("Bridge settlement is still unconfirmed. Check the origin transaction in your explorer.");
     return false;
   }
 
@@ -1017,7 +1023,8 @@ export function SwapPanel({
           binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
         }
         toast.info("Confirming swap…", { duration: 4_000 });
-        const { signature: sig } = await api.submitSolanaSwap(btoa(binary));
+        const { signature: sig } = await api.submitSolanaSwap(btoa(binary), built.buildId);
+        reportSubmission(built,sig);
         showSwapConfirmedToast({
           chainKey: fromChainKey,
           tokenIn,
@@ -1026,20 +1033,7 @@ export function SwapPanel({
           amountOutFormatted,
           txHash: sig,
         });
-        await api.recordSwap({
-          chainKey: fromChainKey,
-          dexId: activeRoute.dexId,
-          tokenIn: tokenIn.address,
-          tokenOut: tokenOut.address,
-          amountIn: effectiveAmountIn,
-          amountOut: activeRoute.amountOutAfterFee,
-          protocolFee: activeRoute.protocolFee,
-          feeBps: quote.protocolFeeBps,
-          txHash: sig,
-          address: solanaWallet.publicKey.toBase58(),
-          status: "confirmed",
-          source: "web",
-        });
+
         void queryClient.invalidateQueries({ queryKey: ["swap-panel-balance-in"] });
         void queryClient.invalidateQueries({ queryKey: ["swap-panel-balance-out"] });
         setAmount("");
@@ -1091,6 +1085,7 @@ export function SwapPanel({
         value: BigInt(built.evm.value ?? "0"),
       });
 
+      reportSubmission(built, hash);
       toast.info("Confirming swap…", { duration: 4_000 });
 
       const receipt = await waitForTransactionReceipt(wagmiConfig, {
@@ -1110,46 +1105,12 @@ export function SwapPanel({
         txHash: hash,
       });
 
-      await api.recordSwap({
-        chainKey: fromChainKey,
-        dexId: activeRoute.dexId,
-        tokenIn: tokenIn.address,
-        tokenOut: tokenOut.address,
-        amountIn: effectiveAmountIn,
-        amountOut: activeRoute.amountOutAfterFee,
-        protocolFee: activeRoute.protocolFee,
-        feeBps: quote.protocolFeeBps,
-        txHash: hash,
-        address: evmAddress,
-        status: "confirmed",
-      });
+
       void queryClient.invalidateQueries({ queryKey: ["swap-panel-balance-in"] });
       void queryClient.invalidateQueries({ queryKey: ["swap-panel-balance-out"] });
       setAmount("");
     } catch (err) {
       toast.error("Swap failed", { description: userFacingError(err) });
-      const failAddress =
-        fromChainKey === "solana"
-          ? solanaWallet.publicKey?.toBase58()
-          : evmAddress;
-      if (failAddress) {
-        void api
-          .recordSwap({
-            chainKey: fromChainKey,
-            dexId: selectedRoute.dexId,
-            tokenIn: tokenIn.address,
-            tokenOut: tokenOut.address,
-            amountIn: amountInBase,
-            amountOut: selectedRoute.amountOutAfterFee,
-            protocolFee: selectedRoute.protocolFee,
-            feeBps: quote.protocolFeeBps,
-            address: failAddress,
-            status: "failed",
-            failureReason: userFacingError(err),
-            source: "web",
-          })
-          .catch(() => {});
-      }
     } finally {
       setExecuting(false);
     }

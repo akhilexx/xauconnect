@@ -60,26 +60,10 @@ export function AdminLoginPanel() {
 
   return (
     <GlassCard variant="strong" padding="lg" className="relative overflow-hidden">
-      {/* gradient accents */}
-      <div
-        className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-gold/25 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -bottom-20 -left-12 h-48 w-48 rounded-full bg-blush/20 blur-3xl"
-        aria-hidden
-      />
-
-      <div className="relative flex flex-col items-center gap-3 text-center">
-        <BrandGlyph src={BRAND_NAV_ICONS.admin} size={56} />
-        <div>
-          <h1 className="font-display text-2xl font-extrabold tracking-tight">
-            Admin <span className="gold-text">console</span>
-          </h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Authorized personnel only. Sessions are audited.
-          </p>
-        </div>
+      <div className="rounded-2xl bg-[#17372e] px-6 py-7 text-white">
+        <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#dac78d]">XAUConnect / Operations</p>
+        <h1 className="font-serif text-4xl tracking-tight">Operator sign in</h1>
+        <p className="mt-2 text-sm text-[#d2dece]">Access the settlement ledger and protocol controls.</p>
       </div>
 
       {sessionNotice && (
@@ -100,6 +84,7 @@ export function AdminLoginPanel() {
             variant="ghost"
             size="sm"
             onClick={() => {
+              void api.signOut().catch(()=>{});
               clearSession();
               clearAdminQueries();
               setSessionNotice("You have been signed out.");

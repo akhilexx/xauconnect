@@ -15,6 +15,7 @@ import { TokenLaunchRequestSchema, type TokenLaunchRequest } from "@xauconnect/u
 import { env } from "../config.js";
 import { db } from "../db/client.js";
 import { asyncHandler, validate, ApiError } from "../middleware/error.js";
+import { rememberLaunch,verifyLaunch } from "../services/launch-evidence.js";
 import { standardLimiter } from "../middleware/rate-limit.js";
 import { logger } from "../logger.js";
 import { publishLaunch } from "../ws/server.js";
@@ -158,6 +159,7 @@ launchpadRouter.post(
         });
       }
 
+      await rememberLaunch(launch, prepared.mint, metadataURI, prepared.solanaTransaction);
       res.json({
         metadataURI,
         contractCall: {
@@ -212,6 +214,7 @@ launchpadRouter.post(
   asyncHandler(async (req, res) => {
     const { launch, tokenAddress, deployTxHash, metadataURI } = validate(RecordSchema, req.body);
 
+    await verifyLaunch(launch,tokenAddress,deployTxHash,metadataURI);
     const creatorAddress = walletAddress(launch.chainKey, launch.creator);
     const tokenAddressNorm = walletAddress(launch.chainKey, tokenAddress);
     const solanaCurve = launch.chainKey === "solana" && launch.launchType === "bonding-curve";

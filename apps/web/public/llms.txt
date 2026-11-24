@@ -157,7 +157,7 @@ ethereum, bsc, polygon, arbitrum, base, avalanche, solana
 5. Sign locally with the user's wallet (never send private keys to the API):
    - EVM:    broadcast calldata via the wallet's own RPC.
    - Solana: sign, then POST /swap/submit-solana with the base64 signed tx.
-6. POST /swap/record { source:"agent", clientId, txHash, status:"confirmed" }.
+6. POST /swap/record { buildId, chainKey, txHash } to queue on-chain verification.
 
 # Cross-chain recipe
 1. POST /swap/cross-chain/quote  → returns a quote with a quoteId.

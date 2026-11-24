@@ -21,7 +21,7 @@ import {
   oneInchFeePercent,
   solanaFeeWallet,
 } from "./integrator-fees.js";
-import { ensureSolanaFeeTokenAccountInitialized, solanaFeeTokenAccountForMint } from "./solana-fee-ata.js";
+import { isSolanaFeeTokenAccountInitialized, solanaFeeTokenAccountForMint } from "./solana-fee-ata.js";
 import {
   assembleJupiterSwapTx,
   fetchJupiterBuild,
@@ -211,7 +211,7 @@ export async function buildJupiterSwap(
     });
     if (feeBps > 0) {
       const feeWallet = solanaFeeWallet();
-      const feeReady = await ensureSolanaFeeTokenAccountInitialized(outputMint);
+      const feeReady = await isSolanaFeeTokenAccountInitialized(feeWallet, outputMint);
       if (!feeReady) {
         throw new Error("SOLANA_FEE_ACCOUNT_REQUIRED");
       }

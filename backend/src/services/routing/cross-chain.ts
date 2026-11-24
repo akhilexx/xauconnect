@@ -659,7 +659,7 @@ export function normalizeCrossChainStatus(
         tx.chain === chainTo0x(toChainKey) ||
         (destChain?.kind === "evm" && tx.chainId === destChain.id),
     );
-    destinationTxHash = destMatch?.txHash ?? body.transactions.at(-1)?.txHash;
+    destinationTxHash = destMatch?.txHash;
   }
 
   if (CROSS_CHAIN_DONE.has(rawStatus) || rawStatus.endsWith("_filled")) {

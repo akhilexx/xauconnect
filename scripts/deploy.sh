@@ -75,6 +75,15 @@ tar -czf "$TARBALL" \
   --exclude='*.turbo*' \
   --exclude='.env' \
   --exclude='*.env.local' \
+  --exclude='.local' \
+  --exclude='vendor' \
+  --exclude='.cursor' \
+  --exclude='PROJECT_CONTEXT.md' \
+  --exclude='.next-server-merge' \
+  --exclude='deploy/secrets' \
+  --exclude='*.env' \
+  --exclude='.env.production' \
+  --exclude='*.pem' \
   --exclude='.azure' \
   --exclude='logs' \
   --exclude='packages/contracts/artifacts' \

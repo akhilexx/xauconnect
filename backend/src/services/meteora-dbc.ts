@@ -340,6 +340,7 @@ export async function buildGoldCurveSwap(req: QuoteRequest, taker: string): Prom
     if (!pool || asNumber(pool.poolState.isMigrated) === 1) return null;
     const config = await client.state.getPoolConfig(pool.poolState.config);
     if (!config) return null;
+    if ((inIsBase ? req.tokenOut : req.tokenIn) !== config.quoteMint.toBase58()) return null;
     const swapBaseForQuote = inIsBase;
     const currentPoint = await getCurrentPoint(connection, config.activationType as ActivationType);
     const quoted = client.pool.swapQuote2({

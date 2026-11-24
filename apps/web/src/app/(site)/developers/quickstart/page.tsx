@@ -44,18 +44,8 @@ export default function QuickstartPage() {
   -H "Content-Type: application/json" \\
   -d '{
     "chainKey": "bsc",
-    "dexId": "1inch-bsc",
-    "tokenIn": "...",
-    "tokenOut": "...",
-    "amountIn": "...",
-    "amountOut": "...",
-    "protocolFee": "...",
-    "feeBps": 30,
-    "txHash": "0x...",
-    "address": "0xYourWallet...",
-    "status": "confirmed",
-    "source": "agent",
-    "clientId": "my-bot-v1"
+    "buildId": "<id from build>",
+    "txHash": "<transaction hash>"
   }'`}</pre>
 
       <h2>End-to-end (TypeScript)</h2>
@@ -85,7 +75,7 @@ const tx = await fetch(\`\${API}/swap/build\`, {
 // EVM: wallet.sendTransaction(tx.evm)  |  Solana: sign tx.solanaTransaction then POST /swap/submit-solana
 
 // 4. record
-await fetch(\`\${API}/swap/record\`, { method: "POST", headers, body: JSON.stringify({ /* ...result... */ }) });`}</pre>
+await fetch(\`\${API}/swap/record\`, { method: "POST", headers, body: JSON.stringify({ chainKey, buildId: tx.buildId, txHash }) });`}</pre>
 
       <h2>Safety rules</h2>
       <ul>

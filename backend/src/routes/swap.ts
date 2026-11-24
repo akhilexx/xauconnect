@@ -5,6 +5,7 @@ import { Router } from "express";
 import { z } from "zod";
 import {
   DEXES,
+  ChainKeySchema, tokenAddressEq,
   QuoteRequestSchema,
   RouteQuoteSchema,
   CrossChainQuoteRequestSchema,
@@ -25,8 +26,7 @@ import {
 import { submitSignedSolanaTransaction } from "../services/solana-submit.js";
 import { SolanaSubmitError } from "../services/solana-errors.js";
 import { db } from "../db/client.js";
-import { recordSwapStats } from "../services/chain-stats.js";
-import { estimateVolumeUsd } from "../services/token-price.js";
+import { trackBuild, queueSettlement } from "../services/settlement/ledger.js";
 import {
   CreateLimitOrderSchema,
   cancelLimitOrder,
@@ -40,6 +40,12 @@ import { prepareQuoteBody, normalizeSwapTokens } from "../services/normalize-swa
 import { readEvmAllowance } from "../services/swap-allowance.js";
 import { supportedChains } from "../services/market.js";
 
+import { requireAuth } from "../middleware/auth.js";
+function orderOwner(claim:string,session:string) {
+  if(!session || session==="admin:console" || (session.startsWith("0x") ? claim.toLowerCase()!==session : claim!==session))
+    throw new ApiError(403,"Sign in with the order wallet","WALLET_REQUIRED");
+  return session;
+}
 export const swapRouter = Router();
 swapRouter.use(attachSwapRequestId, logSwapApiUsage);
 
@@ -137,7 +143,11 @@ swapRouter.post(
   quoteLimiter,
   asyncHandler(async (req, res) => {
     const { request, quote } = validate(CrossChainBuildRequestSchema, req.body);
-    res.json(await buildCrossChain(request, quote));
+    // Transaction payloads supplied by a caller must never reach a signing wallet.
+    const fresh=await quoteCrossChain(request);
+    if(!fresh || fresh.provider!==quote.provider || BigInt(fresh.amountOut)<BigInt(quote.minAmountOut))
+      throw new ApiError(409,"Route changed. Refresh the quote.","QUOTE_EXPIRED");
+    res.json(await buildCrossChain(request, fresh));
   }),
 );
 
@@ -161,7 +171,7 @@ async function handleQuote(req: import("express").Request, res: import("express"
   const raw = req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : {};
   const normalized = prepareQuoteBody(raw, resolveQuoteAmountIn);
   const request = normalizeSwapTaker(validate(QuoteRequestSchema, normalized));
-  if (request.tokenIn.toLowerCase() === request.tokenOut.toLowerCase()) {
+  if (tokenAddressEq(request.chainKey, request.tokenIn, request.tokenOut)) {
     throw new ApiError(400, "tokenIn and tokenOut must differ", "SAME_TOKEN");
   }
   res.json(await aggregateQuotes(request));
@@ -210,12 +220,17 @@ swapRouter.post(
     const raw = req.body && typeof req.body === "object" ? (req.body as Record<string, unknown>) : {};
     const body = normalizeSwapTokens(raw);
     const { request, route, minAmountOut } = validate(BuildSchema, body);
-    res.json(await buildSwapTx(normalizeSwapTaker(request), route, minAmountOut));
+    const normalized = normalizeSwapTaker(request);
+    if (tokenAddressEq(request.chainKey,request.tokenIn,request.tokenOut) || BigInt(request.amountIn)===0n)
+      throw new ApiError(400,"Choose different assets and a positive input","INVALID_PAIR");
+    const built = await buildSwapTx(normalized, route, minAmountOut);
+    res.json(await trackBuild(normalized, built, asSwapReq(req).clientMeta));
   }),
 );
 
 const SubmitSolanaSchema = z.object({
-  signedTransaction: z.string().min(16).max(2_000_000),
+  signedTransaction: z.string().min(16).max(1644),
+  buildId:z.string().uuid().optional(),
 });
 
 /** Broadcast a wallet-signed Solana tx via server RPC (avoids browser 403 on public RPC). */
@@ -223,10 +238,11 @@ swapRouter.post(
   "/submit-solana",
   quoteLimiter,
   asyncHandler(async (req, res) => {
-    const { signedTransaction } = validate(SubmitSolanaSchema, req.body);
+    const { signedTransaction, buildId } = validate(SubmitSolanaSchema, req.body);
     const raw = Uint8Array.from(Buffer.from(signedTransaction, "base64"));
     try {
       const result = await submitSignedSolanaTransaction(raw);
+      if (buildId) await queueSettlement(buildId,"solana",result.signature).catch(()=>logger.warn({signature:result.signature},"Solana settlement queue unavailable"));
       res.json(result);
     } catch (err) {
       const code =
@@ -237,126 +253,46 @@ swapRouter.post(
   }),
 );
 
-const RecordSchema = z.object({
-  chainKey: z.string(),
-  dexId: z.string(),
-  tokenIn: z.string(),
-  tokenOut: z.string(),
-  amountIn: z.string().regex(/^\d+$/),
-  amountOut: z.string().regex(/^\d+$/),
-  protocolFee: z.string().regex(/^\d+$/),
-  feeBps: z.number().int(),
-  volumeUsd: z.number().optional(),
-  txHash: z.string().optional(),
-  address: z.string().optional(),
-  status: z.enum(["confirmed", "failed", "submitted", "quoted"]).optional(),
-  failureReason: z.string().max(500).optional(),
-  source: z.enum(["web", "api", "agent"]).optional(),
-  clientId: z.string().max(64).optional(),
-  clientName: z.string().max(128).optional(),
-  requestId: z.string().uuid().optional(),
-});
+const RecordSchema = z.object({ buildId: z.string().uuid(), chainKey: ChainKeySchema, txHash: z.string().max(88) }).strict();
 
-/** Record a swap attempt (confirmed or failed) for admin analytics. Best-effort. */
-swapRouter.post(
-  "/record",
-  standardLimiter,
-  asyncHandler(async (req, res) => {
-    const data = validate(RecordSchema, req.body);
-    if (db) {
-      const chain = data.chainKey;
-      const taker = data.address?.trim();
-      const isSolana = chain === "solana";
-      const userLookup = taker
-        ? isSolana
-          ? taker
-          : taker.toLowerCase()
-        : null;
-
-      const user = userLookup
-        ? await db.user.upsert({
-            where: { address: userLookup },
-            update: { lastSeenAt: new Date() },
-            create: {
-              address: userLookup,
-              chainKind: isSolana ? "solana" : "evm",
-            },
-          })
-        : null;
-
-      const status =
-        data.status ??
-        (data.failureReason ? "failed" : data.txHash ? "confirmed" : "quoted");
-
-      let volumeUsd = data.volumeUsd ?? 0;
-      if (volumeUsd <= 0 && status === "confirmed") {
-        volumeUsd = await estimateVolumeUsd(data.chainKey, data.tokenIn, data.amountIn);
-      }
-      const feeUsd = (volumeUsd * data.feeBps) / 10_000;
-
-      await db.swap.create({
-        data: {
-          userId: user?.id,
-          chainKey: data.chainKey,
-          dexId: data.dexId,
-          tokenIn: data.tokenIn,
-          tokenOut: data.tokenOut,
-          amountIn: data.amountIn,
-          amountOut: data.amountOut,
-          protocolFee: data.protocolFee,
-          feeBps: data.feeBps,
-          volumeUsd,
-          feeUsd,
-          txHash: data.txHash,
-          takerAddress: taker ?? null,
-          failureReason: data.failureReason ?? null,
-          status,
-          clientSource:
-            data.source ?? asSwapReq(req).clientMeta?.clientSource ?? (asSwapReq(req).clientMeta?.clientId ? "agent" : "api"),
-          clientId: data.clientId ?? asSwapReq(req).clientMeta?.clientId ?? null,
-          clientName: data.clientName ?? asSwapReq(req).clientMeta?.clientName ?? null,
-          requestId: data.requestId ?? asSwapReq(req).requestId ?? null,
-        },
-      });
-      if (status === "confirmed") {
-        await recordSwapStats(data.chainKey, volumeUsd, feeUsd);
-      }
-    }
-    res.json({ ok: true });
-  }),
-);
+/** A submission requests verification. Only the settlement worker can write a Swap. */
+swapRouter.post("/record", standardLimiter, asyncHandler(async (req, res) => {
+  const {buildId,chainKey,txHash}=validate(RecordSchema,req.body);
+  const result=await queueSettlement(buildId,chainKey,txHash);
+  res.status(result.status==="verified"?200:202).json(result);
+}));
 
 /** Create a limit order (monitored server-side until price triggers). */
 swapRouter.post(
   "/limit-orders",
-  standardLimiter,
+  standardLimiter, requireAuth,
   asyncHandler(async (req, res) => {
     if (!db) throw new ApiError(503, "Database required for limit orders", "DB_REQUIRED");
     const input = validate(CreateLimitOrderSchema, req.body);
-    const order = await createLimitOrder(input);
+    const order = await createLimitOrder({...input,userAddress:orderOwner(input.userAddress,req.session!.address)});
     res.status(201).json({ order });
   }),
 );
 
 swapRouter.get(
   "/limit-orders",
-  standardLimiter,
+  standardLimiter, requireAuth,
   asyncHandler(async (req, res) => {
     const userAddress = req.query.userAddress as string | undefined;
     if (!userAddress) throw new ApiError(400, "userAddress required", "MISSING_ADDRESS");
     const chainKey = req.query.chainKey as string | undefined;
-    res.json({ orders: await listLimitOrders(userAddress, chainKey) });
+    res.json({ orders: await listLimitOrders(orderOwner(userAddress,req.session!.address), chainKey) });
   }),
 );
 
 swapRouter.delete(
   "/limit-orders/:id",
-  standardLimiter,
+  standardLimiter, requireAuth,
   asyncHandler(async (req, res) => {
     if (!db) throw new ApiError(503, "Database required", "DB_REQUIRED");
     const userAddress = req.query.userAddress as string | undefined;
     if (!userAddress) throw new ApiError(400, "userAddress required", "MISSING_ADDRESS");
-    const order = await cancelLimitOrder(req.params.id ?? "", userAddress);
+    const order = await cancelLimitOrder(req.params.id ?? "", orderOwner(userAddress,req.session!.address));
     res.json({ order });
   }),
 );

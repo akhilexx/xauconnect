@@ -2,6 +2,7 @@
  * Agent-friendly normalization before zod validation on swap quote/build bodies.
  * Resolves token tickers (ETH, USDT) to on-chain addresses via the catalog.
  */
+import { PublicKey } from "@solana/web3.js";
 import { searchSwapTokens } from "@xauconnect/utils";
 import { ApiError } from "../middleware/error.js";
 
@@ -32,7 +33,12 @@ export function normalizeSwapTokens(body: Record<string, unknown>): Record<strin
     const out = { ...body };
     for (const field of ["tokenIn", "tokenOut"] as const) {
       const val = out[field];
-      if (typeof val !== "string" || looksLikeAddress(val)) continue;
+      if(typeof val!=="string") continue;
+      if(looksLikeAddress(val)){
+        if(chainKey==="solana"){try {new PublicKey(val);continue;}catch{/* reject */}}
+        else if(/^0x[\da-f]{40}$/i.test(val))continue;
+        throw new ApiError(400,"Invalid asset address","INVALID_ASSET");
+      }
       const resolved = resolveTokenSymbol(chainKey, val);
       if (!resolved) {
         throw new ApiError(

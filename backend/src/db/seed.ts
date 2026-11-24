@@ -12,7 +12,7 @@ async function main() {
     const swapFeeBps = chainKey === "solana" ? 500 : 300;
     await prisma.feeConfig.upsert({
       where: { chainKey },
-      update: { swapFeeBps },
+      update: {},
       create: {
         chainKey,
         swapFeeBps,

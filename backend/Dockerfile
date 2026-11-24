@@ -18,7 +18,7 @@ RUN pnpm --filter @xauconnect/backend db:generate \
   && pnpm --filter @xauconnect/backend build
 
 FROM base AS runner
-ENV NODE_ENV=production
+ENV NODE_ENV=production BIND_ADDRESS=0.0.0.0
 COPY --from=build /app ./
 EXPOSE 4000
 CMD ["node", "backend/dist/index.js"]

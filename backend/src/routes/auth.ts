@@ -1,25 +1,54 @@
 /**
  * Wallet authentication routes (challenge/verify -> JWT).
  */
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { verifyMessage } from "viem";
-import { randomBytes } from "node:crypto";
+import bs58 from "bs58";
+import { createPublicKey, verify as verifySignature, randomBytes } from "node:crypto";
 import { AuthChallengeRequestSchema, AuthVerifyRequestSchema } from "@xauconnect/utils";
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { cache } from "../cache.js";
 import { adminAddresses, env } from "../config.js";
 import { db } from "../db/client.js";
-import {
-  asyncHandler,
-  validate,
-  ApiError,
-} from "../middleware/error.js";
+import { asyncHandler, validate, ApiError } from "../middleware/error.js";
 import { authLimiter } from "../middleware/rate-limit.js";
-import { buildChallengeMessage, requireAuth, signSession } from "../middleware/auth.js";
+import {
+  buildChallengeMessage,
+  requireAuth,
+  signSession,
+  verifySessionToken,
+} from "../middleware/auth.js";
 
 export const authRouter = Router();
-authRouter.use(authLimiter);
+authRouter.use((_req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+}, authLimiter);
+async function sendSession(req: Request, res: Response, address: string, role: "ADMIN" | "USER") {
+  const token = signSession({ address, role });
+  if (role === "ADMIN") await cache.set("auth:active:" + verifySessionToken(token).jti, "1", 1800);
+  if (role === "ADMIN" && req.body.browserSession === true) {
+    res.cookie("xau_admin", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      path: "/",
+      maxAge: 30 * 60_000,
+    });
+    res.json({ token: "cookie-session", role });
+  } else res.json({ token, role });
+}
+authRouter.post(
+  "/logout",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    if (req.session?.role === "ADMIN") await cache.del("auth:active:" + req.session.jti);
+    res
+      .clearCookie("xau_admin", { path: "/", httpOnly: true, secure: true, sameSite: "strict" })
+      .json({ ok: true });
+  }),
+);
 
 /** Step 1 — issue a nonce + message for the wallet to sign. */
 authRouter.post(
@@ -39,16 +68,19 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const { address, signature, nonce } = validate(AuthVerifyRequestSchema, req.body);
 
-    const stored = await cache.get(`auth:nonce:${nonce}`);
+    const stored = await cache.take(`auth:nonce:${nonce}`);
     if (!stored) throw new ApiError(401, "Challenge expired — request a new one", "NONCE_EXPIRED");
     const { address: expected, message } = JSON.parse(stored) as {
       address: string;
       message: string;
     };
-    if (expected.toLowerCase() !== address.toLowerCase()) {
+    if (
+      address.startsWith("0x")
+        ? expected.toLowerCase() !== address.toLowerCase()
+        : expected !== address
+    ) {
       throw new ApiError(401, "Address mismatch", "ADDRESS_MISMATCH");
     }
-    await cache.del(`auth:nonce:${nonce}`); // single-use
 
     // EVM signature verification (viem). Solana ed25519 verification can be
     // added with tweetnacl when the embedded Solana auth flow ships.
@@ -60,22 +92,46 @@ authRouter.post(
         signature: signature as `0x${string}`,
       }).catch(() => false);
     }
+    if (!address.startsWith("0x")) {
+      try {
+        const key = bs58.decode(address),
+          sig = bs58.decode(signature);
+        if (key.length === 32 && sig.length === 64)
+          valid = verifySignature(
+            null,
+            Buffer.from(message),
+            createPublicKey({
+              key: Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), key]),
+              format: "der",
+              type: "spki",
+            }),
+            sig,
+          );
+      } catch {
+        valid = false;
+      }
+    }
+    const canonical = address.startsWith("0x") ? address.toLowerCase() : address;
     if (!valid) throw new ApiError(401, "Invalid signature", "BAD_SIGNATURE");
 
-    const role = adminAddresses.has(address.toLowerCase()) ? "ADMIN" : "USER";
+    const role = address.startsWith("0x") && adminAddresses.has(canonical) ? "ADMIN" : "USER";
 
     // Upsert user record (best-effort; demo mode has no DB).
     if (db) {
       await db.user
         .upsert({
-          where: { address: address.toLowerCase() },
+          where: { address: canonical },
           update: { lastSeenAt: new Date(), role },
-          create: { address: address.toLowerCase(), role },
+          create: {
+            address: canonical,
+            chainKind: address.startsWith("0x") ? "evm" : "solana",
+            role,
+          },
         })
         .catch(() => {});
     }
 
-    res.json({ token: signSession({ address: address.toLowerCase(), role }), role });
+    await sendSession(req, res, canonical, role);
   }),
 );
 
@@ -105,10 +161,7 @@ authRouter.post(
       throw new ApiError(401, "Invalid admin credentials", "BAD_ADMIN_CREDENTIALS");
     }
 
-    res.json({
-      token: signSession({ address: "admin:console", role: "ADMIN" }),
-      role: "ADMIN" as const,
-    });
+    await sendSession(req, res, "admin:console", "ADMIN");
   }),
 );
 

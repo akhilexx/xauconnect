@@ -18,10 +18,7 @@ export interface RateLimitOptions {
 export function rateLimit({ limit, windowSeconds, prefix }: RateLimitOptions) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const ip =
-        (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
-        req.socket.remoteAddress ??
-        "unknown";
+      const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
       const window = Math.floor(Date.now() / (windowSeconds * 1000));
       const key = `rl:${prefix}:${ip}:${window}`;
       const count = await cache.incr(key, windowSeconds);
@@ -35,7 +32,11 @@ export function rateLimit({ limit, windowSeconds, prefix }: RateLimitOptions) {
       }
       next();
     } catch {
-      next(); // never let the limiter take the API down
+      if (prefix === "auth" || prefix === "admin")
+        return next(
+          new ApiError(503, "Access control temporarily unavailable", "LIMITER_UNAVAILABLE"),
+        );
+      next();
     }
   };
 }

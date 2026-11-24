@@ -50,7 +50,8 @@ async function verifyConfirmed(
       "SOLANA_SWAP_FAILED",
     );
   }
-  if (tx.meta?.err) {
+  if (!tx.meta) throw new SolanaSubmitError("Missing transaction metadata", "SOLANA_SUBMIT_FAILED");
+  if (tx.meta.err) {
     const code = mapSolanaProgramError(tx.meta.err, tx.meta.logMessages ?? []);
     throw new SolanaSubmitError("Swap failed on-chain", code);
   }
@@ -64,7 +65,7 @@ export async function submitSignedSolanaTransaction(
 ): Promise<SolanaSubmitResult> {
   let lastErr: Error | undefined;
   for (const url of solanaRpcUrls()) {
-    for (const skipPreflight of [false, true]) {
+    for (const skipPreflight of [false]) {
       try {
         const connection = new Connection(url, "confirmed");
         const signature = await withTimeout(
@@ -72,13 +73,13 @@ export async function submitSignedSolanaTransaction(
           SUBMIT_TIMEOUT_MS,
         );
         const slot = await verifyConfirmed(connection, signature);
-        logger.info({ signature, slot, url }, "solana swap confirmed");
+        logger.info({ signature, slot }, "solana swap confirmed");
         return { signature, confirmed: true, slot };
       } catch (err) {
         lastErr = err as Error;
         const code = err instanceof SolanaSubmitError ? err.code : undefined;
         logger.warn(
-          { err: lastErr.message, code, url, skipPreflight },
+          { code, skipPreflight },
           "solana submit attempt failed",
         );
         if (err instanceof SolanaSubmitError && code !== "SOLANA_SUBMIT_FAILED") {

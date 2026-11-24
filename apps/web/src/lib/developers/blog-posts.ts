@@ -110,7 +110,7 @@ if (!route) throw new Error("No executable route");`,
       {
         heading: "3. Build, approve if needed, sign, and record",
         paragraphs: [
-          "Call GET /swap/allowance before swapping ERC-20 tokens. After the transaction confirms, always POST /swap/record with source: agent so volume shows in admin.",
+          "Call GET /swap/allowance before swapping ERC-20 tokens. After the transaction confirms, always POST /swap/record with the buildId and transaction hash to request settlement verification.",
         ],
         code: `const built = await api.buildSwap({
   request: { chainKey: "bsc", tokenIn, tokenOut, amountIn, slippageBps: 50, taker: account.address },
@@ -126,15 +126,8 @@ const hash = await wallet.sendTransaction({
 
 await api.recordSwap({
   chainKey: "bsc",
-  dexId: route.dexId,
-  tokenIn, tokenOut,
-  amountIn, amountOut: route.amountOutAfterFee,
-  protocolFee: route.protocolFee,
-  feeBps: quote.protocolFeeBps,
+  buildId: built.buildId,
   txHash: hash,
-  address: account.address,
-  status: "confirmed",
-  source: "agent",
 });`,
       },
     ],

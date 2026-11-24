@@ -144,6 +144,7 @@ export class XauApiClient {
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await this.fetchImpl(`${this.baseUrl}${path}`, {
       cache: "no-store",
+      credentials:"same-origin",
       ...init,
       headers: {
         "content-type": "application/json",
@@ -180,13 +181,15 @@ export class XauApiClient {
     signature: string;
     nonce: string;
   }): Promise<{ token: string; role: "USER" | "ADMIN" }> {
-    return this.post("/auth/verify", input);
+    return this.post("/auth/verify", { ...input, browserSession:typeof window!=="undefined" });
   }
 
   /** Email + password login for the admin console (/xaxmd5/login). */
   adminLogin(email: string, password: string): Promise<{ token: string; role: "ADMIN" }> {
-    return this.post("/auth/admin-login", { email, password });
+    return this.post("/auth/admin-login", { email, password, browserSession:typeof window!=="undefined" });
   }
+
+  signOut():Promise<{ok:boolean}> {return this.post("/auth/logout",{});}
 
   /** Fetch the signed-in user's social profile. */
   getProfile(): Promise<{ profile: UserSocialProfile | null }> {
@@ -272,33 +275,15 @@ export class XauApiClient {
   }
 
   /** Broadcast a signed Solana swap tx through server RPC; waits for on-chain confirmation. */
-  submitSolanaSwap(signedTransactionBase64: string): Promise<{
+  submitSolanaSwap(signedTransactionBase64: string, buildId?:string): Promise<{
     signature: string;
     confirmed: true;
     slot: number;
   }> {
-    return this.post("/swap/submit-solana", { signedTransaction: signedTransactionBase64 });
+    return this.post("/swap/submit-solana", { signedTransaction: signedTransactionBase64, buildId });
   }
 
-  recordSwap(record: {
-    chainKey: string;
-    dexId: string;
-    tokenIn: string;
-    tokenOut: string;
-    amountIn: string;
-    amountOut: string;
-    protocolFee: string;
-    feeBps: number;
-    volumeUsd?: number;
-    txHash?: string;
-    address?: string;
-    status?: "confirmed" | "failed" | "submitted" | "quoted";
-    failureReason?: string;
-    source?: "web" | "api" | "agent";
-    clientId?: string;
-    clientName?: string;
-    requestId?: string;
-  }): Promise<{ ok: boolean }> {
+  recordSwap(record: { buildId: string; chainKey: string; txHash: string }): Promise<{ ok: boolean; status: "verified" | "pending" }> {
     return this.post("/swap/record", record);
   }
 
@@ -771,6 +756,7 @@ export class XauApiClient {
       amountOutFormatted: string;
       protocolFee: string;
       protocolFeeFormatted: string;
+      volumePriced:boolean; feePriced:boolean;
       feeBps: number;
       volumeUsd: number;
       feeUsd: number;

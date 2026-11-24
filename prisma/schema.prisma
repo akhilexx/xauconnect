@@ -184,11 +184,18 @@ model Swap {
   tokenOut    String
   amountIn    Decimal  @db.Decimal(78, 0)
   amountOut   Decimal  @db.Decimal(78, 0)
-  /// Protocol fee captured (in tokenIn base units)
+  /// Captured fee in feeToken base units on verified rows.
   protocolFee Decimal  @db.Decimal(78, 0)
   feeBps      Int
   volumeUsd   Float    @default(0)
   feeUsd      Float    @default(0)
+  /// Nullable for legacy reports. Only settlement rows have an immutable canonical key.
+  settlementKey String? @unique
+  verifiedAt    DateTime?
+  blockRef      String?
+  feeToken      String?
+  volumePriced  Boolean @default(false)
+  feePriced     Boolean @default(false)
   txHash      String?
   /// Wallet that signed the swap (preserves Solana base58 casing)
   takerAddress String?
@@ -201,9 +208,36 @@ model Swap {
   requestId     String?
   createdAt   DateTime @default(now())
 
+  @@index([verifiedAt, createdAt])
   @@index([chainKey, createdAt])
   @@index([userId, createdAt])
   @@index([clientSource, createdAt])
+}
+
+/// Private build tickets and verification work; never part of revenue or volume.
+model SwapVerification {
+  id           String @id @default(uuid())
+  chainKey     String
+  taker        String
+  tokenIn      String
+  tokenOut     String
+  amountIn     String
+  venue        String
+  fingerprint  String
+  feeRecipient String
+  prices       Json
+  clientSource String?
+  clientId     String?
+  clientName   String?
+  txHash       String?
+  state        String @default("built")
+  reason       String?
+  attempts     Int @default(0)
+  nextCheck    DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@index([state, nextCheck])
+  @@index([createdAt])
 }
 
 model ApiClient {
@@ -289,6 +323,7 @@ model FeeConfig {
 /// support, and partner-fee reconciliation. Rows are created at checkout and
 /// updated by provider webhooks.
 model FiatTransaction {
+  providerVerifiedAt DateTime?
   id              String   @id @default(cuid())
   /// Onramper transaction id (authoritative external id)
   providerTxId    String?  @unique

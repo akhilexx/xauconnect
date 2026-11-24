@@ -1,15 +1,27 @@
 "use client";
 
-/**
- * AdminDashboard — role-gated admin console at /xaxmd5.
- */
-import { useState } from "react";
-import { LogOut } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Activity,
+  ArrowLeft,
+  ArrowLeftRight,
+  Blocks,
+  BookOpenCheck,
+  ChevronRight,
+  CreditCard,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Settings2,
+  ShieldCheck,
+  Users,
+  Wallet,
+  X,
+} from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BRAND_NAV_ICONS } from "@xauconnect/utils";
-import { GlassButton, Skeleton, cn } from "@xauconnect/ui";
+import { Skeleton } from "@xauconnect/ui";
 import { logoutAdmin, useAdminSessionGuard } from "@/lib/session";
-import { BrandGlyph } from "@/components/brand-glyph";
 import { BrandMark } from "@/components/brand-logo";
 import { MetricsOverview } from "./metrics-overview";
 import { FeeConfigPanel } from "./fee-config-panel";
@@ -20,101 +32,210 @@ import { AdminWalletsSection } from "./admin-wallets-section";
 import { AdminSwapsPanel } from "./admin-swaps-panel";
 import { AdminApiAgentsPanel } from "./admin-api-agents-panel";
 import { FiatTransactionsPanel } from "./fiat-transactions-panel";
+import "./console.css";
 
-type SectionId =
-  | "metrics"
-  | "swaps"
-  | "fiat"
-  | "agents"
-  | "fees"
-  | "wallets"
-  | "listings"
-  | "users"
-  | "audit";
-
-const SECTIONS: Array<{ id: SectionId; label: string; mark: string }> = [
-  { id: "metrics", label: "Metrics", mark: BRAND_NAV_ICONS.metrics },
-  { id: "swaps", label: "Swaps", mark: BRAND_NAV_ICONS.swap },
-  { id: "fiat", label: "Buy/Sell", mark: BRAND_NAV_ICONS.buySell },
-  { id: "agents", label: "API Agents", mark: BRAND_NAV_ICONS.agents },
-  { id: "fees", label: "Fee Config", mark: BRAND_NAV_ICONS.fees },
-  { id: "wallets", label: "Wallets", mark: BRAND_NAV_ICONS.wallet },
-  { id: "listings", label: "Listings", mark: BRAND_NAV_ICONS.admin },
-  { id: "users", label: "Users", mark: BRAND_NAV_ICONS.users },
-  { id: "audit", label: "Audit Log", mark: BRAND_NAV_ICONS.audit },
-];
+const pages = [
+  {
+    id: "overview",
+    name: "Overview",
+    icon: LayoutDashboard,
+    group: "Monitor",
+    desc: "Settlement activity and protocol health.",
+    panel: MetricsOverview,
+  },
+  {
+    id: "swaps",
+    name: "Swap ledger",
+    icon: ArrowLeftRight,
+    group: "Monitor",
+    desc: "Inspect settled amounts, collected fees and transaction receipts.",
+    panel: AdminSwapsPanel,
+  },
+  {
+    id: "fiat",
+    name: "Fiat activity",
+    icon: CreditCard,
+    group: "Monitor",
+    desc: "Follow buy and sell orders through provider settlement.",
+    panel: FiatTransactionsPanel,
+  },
+  {
+    id: "agents",
+    name: "API activity",
+    icon: Activity,
+    group: "Monitor",
+    desc: "Request traffic, integrations and execution activity.",
+    panel: AdminApiAgentsPanel,
+  },
+  {
+    id: "wallets",
+    name: "Wallets",
+    icon: Wallet,
+    group: "Operations",
+    desc: "Review treasury holdings and connected wallets.",
+    panel: AdminWalletsSection,
+  },
+  {
+    id: "fees",
+    name: "Fee settings",
+    icon: Settings2,
+    group: "Operations",
+    desc: "Manage protocol rates across networks.",
+    panel: FeeConfigPanel,
+  },
+  {
+    id: "listings",
+    name: "Listing queue",
+    icon: Blocks,
+    group: "Operations",
+    desc: "Review tokens awaiting a listing decision.",
+    panel: ListingQueue,
+  },
+  {
+    id: "users",
+    name: "Users",
+    icon: Users,
+    group: "Governance",
+    desc: "Find accounts, review identity and manage access.",
+    panel: UsersTable,
+  },
+  {
+    id: "audit",
+    name: "Audit trail",
+    icon: BookOpenCheck,
+    group: "Governance",
+    desc: "Review administrative decisions and changes.",
+    panel: AuditLogPanel,
+  },
+] as const;
+type Section = (typeof pages)[number]["id"];
+function sectionFromHash(): Section {
+  return pages.find((p) => "#" + p.id === location.hash)?.id ?? "overview";
+}
 
 export function AdminDashboard() {
-  const router = useRouter();
-  const { sessionReady, isAdmin } = useAdminSessionGuard();
-  const [section, setSection] = useState<SectionId>("metrics");
-
-  if (!sessionReady || !isAdmin) {
+  const router = useRouter(),
+    { sessionReady, isAdmin } = useAdminSessionGuard();
+  const [section, setSection] = useState<Section>("overview"),
+    [open, setOpen] = useState(false);
+  const toggle = useRef<HTMLButtonElement>(null),
+    heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const sync = () => {
+      setSection(sectionFromHash());
+      setOpen(false);
+    };
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        toggle.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [open]);
+  const page = pages.find((p) => p.id === section)!,
+    Panel = page.panel;
+  if (!sessionReady || !isAdmin)
     return (
-      <div className="mx-auto flex w-full flex-col gap-5">
-        <Skeleton className="h-10 w-64" />
+      <div className="p-8" aria-label="Checking admin session">
         <Skeleton className="h-72 w-full" />
       </div>
     );
-  }
-
   return (
-    <div className="mx-auto flex w-full flex-col gap-5 px-1 sm:px-0">
-      <header className="flex flex-col gap-3">
-        <div className="flex min-w-0 items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <BrandMark size={44} className="mt-0.5 hidden shrink-0 overflow-visible sm:block" />
-            <div className="min-w-0">
-              <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-                Admin <span className="gold-text">console</span>
-              </h1>
-              <p className="mt-1 text-sm text-ink-muted">
-                Connected wallets, users, metrics, fees, listings, and audit trail.
-              </p>
-            </div>
+    <div className="ops">
+      <a className="ops-skip" href="#ops-main">
+        Skip to content
+      </a>
+      <aside className="ops-rail">
+        <div className="ops-brand">
+          <BrandMark size={36} />
+          <div>
+            <strong>XAUConnect</strong>
+            <small>Operator workspace</small>
           </div>
-          <GlassButton
-            variant="ghost"
-            size="sm"
-            className="shrink-0 rounded-full"
-            onClick={() => logoutAdmin(router, "signout")}
-            aria-label="Sign out of admin console"
+          <button
+            ref={toggle}
+            className="ops-toggle"
+            aria-controls="ops-navigation"
+            aria-expanded={open}
+            aria-label={open ? "Close navigation" : "Open navigation"}
+            onClick={() => setOpen(!open)}
           >
-            <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Sign out</span>
-          </GlassButton>
+            {open ? <X /> : <Menu />}
+          </button>
         </div>
-        <nav className="scroll-x-tabs flex max-w-[calc(100%+0.5rem)] gap-0.5 overflow-x-auto rounded-full bg-white/55 p-1 shadow-[0_1px_2px_rgba(21,23,28,0.04)] ring-1 ring-ink/[0.06] sm:mx-0 sm:max-w-none sm:flex-wrap">
-          {SECTIONS.map(({ id, label, mark }) => {
-            const active = section === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setSection(id)}
-                className={cn(
-                  "flex h-11 shrink-0 items-center gap-2 rounded-full px-3 text-[13px] font-medium tracking-tight transition-colors whitespace-nowrap sm:h-9",
-                  active
-                    ? "bg-white text-ink shadow-[0_1px_2px_rgba(21,23,28,0.06)] ring-1 ring-gold/25"
-                    : "text-ink-muted hover:bg-white/70 hover:text-ink",
-                )}
-              >
-                <BrandGlyph src={mark} size={18} />
-                {label}
-              </button>
-            );
-          })}
-        </nav>
-      </header>
-
-      {section === "metrics" && <MetricsOverview />}
-      {section === "swaps" && <AdminSwapsPanel />}
-      {section === "fiat" && <FiatTransactionsPanel />}
-      {section === "agents" && <AdminApiAgentsPanel />}
-      {section === "fees" && <FeeConfigPanel />}
-      {section === "wallets" && <AdminWalletsSection />}
-      {section === "listings" && <ListingQueue />}
-      {section === "users" && <UsersTable />}
-      {section === "audit" && <AuditLogPanel />}
+        <div id="ops-navigation" className={"ops-navwrap" + (open ? " is-open" : "")}>
+          <nav aria-label="Admin sections">
+            {["Monitor", "Operations", "Governance"].map((group) => (
+              <div className="ops-navgroup" key={group}>
+                <span>{group}</span>
+                {pages
+                  .filter((p) => p.group === group)
+                  .map((p) => (
+                    <a
+                      key={p.id}
+                      href={"#" + p.id}
+                      aria-current={p.id === section ? "page" : undefined}
+                      onClick={() => {
+                        setSection(p.id);
+                        setOpen(false);
+                        requestAnimationFrame(() =>
+                          heading.current?.focus({ preventScroll: true }),
+                        );
+                      }}
+                    >
+                      <p.icon size={16} />
+                      {p.name}
+                      <ChevronRight size={13} />
+                    </a>
+                  ))}
+              </div>
+            ))}
+          </nav>
+          <div className="ops-railfoot">
+            <Link href="/">
+              <ArrowLeft size={16} />
+              Back to site
+            </Link>
+            <button onClick={() => logoutAdmin(router, "signout")}>
+              <LogOut size={16} />
+              Sign out
+            </button>
+          </div>
+        </div>
+      </aside>
+      <div className="ops-work" id="ops-main">
+        <div className="ops-top">
+          <span>
+            Workspace <ChevronRight size={12} /> {page.group} <ChevronRight size={12} />{" "}
+            <b>{page.name}</b>
+          </span>
+          <span>
+            <ShieldCheck size={15} /> Admin session
+          </span>
+        </div>
+        <div className="ops-content">
+          <header className="ops-heading">
+            <small>
+              {page.group} / {String(pages.indexOf(page) + 1).padStart(2, "0")}
+            </small>
+            <h1 tabIndex={-1} ref={heading}>
+              {page.name}
+            </h1>
+            <p>{page.desc}</p>
+          </header>
+          <section key={section} className="ops-enter" aria-label={page.name}>
+            <Panel />
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

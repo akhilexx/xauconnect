@@ -2,7 +2,7 @@
 
 export function tokenAddressEq(chainKey: string, a: string, b: string): boolean {
   if (a === b) return true;
-  if (chainKey === "solana") return a.toLowerCase() === b.toLowerCase();
+  if (chainKey === "solana") return false;
   return a.toLowerCase() === b.toLowerCase();
 }
 

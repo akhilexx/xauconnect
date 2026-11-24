@@ -21,10 +21,6 @@ export function asSwapReq(req: Request): SwapTrackedRequest {
 }
 
 function clientIp(req: Request): string | undefined {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.length > 0) {
-    return forwarded.split(",")[0]?.trim();
-  }
   return req.ip;
 }
 
@@ -83,7 +79,7 @@ export function attachSwapRequestId(req: Request, res: Response, next: NextFunct
 export function logSwapApiUsage(req: Request, res: Response, next: NextFunction): void {
   const tracked = asSwapReq(req);
   res.on("finish", () => {
-    if (!db) return;
+    if (!db || res.statusCode===429 || res.statusCode===404) return;
     const endpoint = req.baseUrl + req.path;
     void db.apiRequestLog
       .create({
@@ -93,8 +89,8 @@ export function logSwapApiUsage(req: Request, res: Response, next: NextFunction)
           clientSource: tracked.clientMeta?.clientSource ?? "api",
           endpoint,
           method: req.method,
-          chainKey: extractChainKey(req.body) ?? null,
-          takerAddress: extractTaker(req.body) ?? null,
+          chainKey: extractChainKey(req.body)?.slice(0,32) ?? null,
+          takerAddress: extractTaker(req.body)?.slice(0,96) ?? null,
           clientIp: clientIp(req) ?? null,
           userAgent:
             typeof req.headers["user-agent"] === "string"

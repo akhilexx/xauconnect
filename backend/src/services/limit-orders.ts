@@ -1,17 +1,18 @@
 /**
  * Limit order monitor — checks spot price vs target; marks triggered orders.
  */
+import { ChainKeySchema,AddressSchema,AmountSchema } from "@xauconnect/utils";
 import { z } from "zod";
 import { db } from "../db/client.js";
 import { lookupToken } from "./market-lookup.js";
 import { logger } from "../logger.js";
 
 export const CreateLimitOrderSchema = z.object({
-  chainKey: z.string(),
+  chainKey: ChainKeySchema,
   userAddress: z.string().min(3),
-  tokenIn: z.string(),
-  tokenOut: z.string(),
-  amountIn: z.string().regex(/^\d+$/),
+  tokenIn: AddressSchema,
+  tokenOut: AddressSchema,
+  amountIn: AmountSchema,
   targetPrice: z.number().positive(),
   slippageBps: z.number().int().min(1).max(5000).default(50),
   expiresInHours: z.number().min(1).max(168).optional(),
@@ -41,7 +42,7 @@ export async function listLimitOrders(userAddress: string, chainKey?: string) {
   if (!db) return [];
   return db.limitOrder.findMany({
     where: {
-      userAddress: { equals: userAddress, mode: "insensitive" },
+      userAddress: userAddress.startsWith("0x") ? { equals: userAddress, mode: "insensitive" } : userAddress,
       ...(chainKey ? { chainKey } : {}),
       status: { in: ["pending", "triggered"] },
     },
@@ -53,7 +54,7 @@ export async function listLimitOrders(userAddress: string, chainKey?: string) {
 export async function cancelLimitOrder(id: string, userAddress: string) {
   if (!db) throw new Error("Database required");
   const order = await db.limitOrder.findUnique({ where: { id } });
-  if (!order || order.userAddress.toLowerCase() !== userAddress.toLowerCase()) {
+  if (!order || (userAddress.startsWith("0x") ? order.userAddress.toLowerCase() !== userAddress.toLowerCase() : order.userAddress !== userAddress)) {
     throw new Error("Order not found");
   }
   return db.limitOrder.update({ where: { id }, data: { status: "cancelled" } });

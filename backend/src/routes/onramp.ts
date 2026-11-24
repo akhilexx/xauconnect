@@ -14,7 +14,7 @@
  *   GET  /onramp/transaction/:ctx — poll our record for the UI
  */
 import { Router } from "express";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import {
   ONRAMP_NETWORK_BY_CHAIN,
   ONRAMP_CHAIN_BY_NETWORK,
@@ -196,7 +196,7 @@ onrampRouter.post(
             partnerFeePct,
             partnerFeeFiat:
               body.type === "buy" ? Number(((body.amount * partnerFeePct) / 100).toFixed(2)) : 0,
-            clientIp: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? null,
+            clientIp: req.ip ?? null,
           },
         });
       } catch (err) {
@@ -240,15 +240,10 @@ function normalizeStatus(s?: string): string {
 onrampRouter.post(
   "/webhook",
   asyncHandler(async (req, res) => {
-    // Authenticate the callback when a secret is configured.
-    if (env.ONRAMPER_WEBHOOK_SECRET) {
-      const provided =
-        (req.headers["x-onramper-webhook-secret"] as string | undefined) ??
-        (req.query.secret as string | undefined);
-      if (provided !== env.ONRAMPER_WEBHOOK_SECRET) {
-        throw new ApiError(401, "Invalid webhook signature", "WEBHOOK_UNAUTHORIZED");
-      }
-    }
+    const expected=env.ONRAMPER_WEBHOOK_SECRET;
+    const provided=req.get("x-onramper-webhook-secret");
+    const hash=(v:string)=>createHash("sha256").update(v).digest();
+    if(!expected || !provided || !timingSafeEqual(hash(expected),hash(provided))) throw new ApiError(401,"Invalid webhook credential","WEBHOOK_UNAUTHORIZED");
 
     const payload = req.body as {
       transactionId?: string;
@@ -269,6 +264,7 @@ onrampRouter.post(
           : { providerTxId: payload.transactionId! };
         const existing = await db.fiatTransaction.findFirst({ where });
         const data: Record<string, unknown> = {
+          providerVerifiedAt:new Date(),
           status: normalizeStatus(payload.status),
           provider: payload.onramp ?? existing?.provider ?? undefined,
           txHash: payload.transactionHash || undefined,
@@ -280,18 +276,6 @@ onrampRouter.post(
         }
         if (existing) {
           await db.fiatTransaction.update({ where: { id: existing.id }, data });
-        } else {
-          await db.fiatTransaction.create({
-            data: {
-              providerTxId: payload.transactionId,
-              partnerContext: payload.partnerContext,
-              type: "buy",
-              status: normalizeStatus(payload.status),
-              fiatCurrency: "USD",
-              cryptoAsset: "unknown",
-              ...data,
-            } as never,
-          });
         }
       } catch (err) {
         logger.warn({ err }, "fiat webhook persist failed");
@@ -340,13 +324,12 @@ onrampRouter.post(
     const token = (req.body as { data?: string })?.data;
     if (typeof token === "string" && env.TRANSAK_API_SECRET) {
       try {
-        data = jwt.verify(token, env.TRANSAK_API_SECRET) as typeof data;
+        data = jwt.verify(token, env.TRANSAK_API_SECRET,{algorithms:["HS256"]}) as typeof data;
       } catch {
         throw new ApiError(401, "Invalid Transak webhook signature", "WEBHOOK_UNAUTHORIZED");
       }
-    } else if (typeof token !== "string") {
-      // Unsigned/test payloads (staging): accept the raw body shape.
-      data = req.body as typeof data;
+    } else {
+      throw new ApiError(401,"Signed webhook required","WEBHOOK_UNAUTHORIZED");
     }
 
     const w = data.webhookData;
@@ -357,6 +340,7 @@ onrampRouter.post(
           : { providerTxId: w.id! };
         const existing = await db.fiatTransaction.findFirst({ where });
         const update: Record<string, unknown> = {
+          providerVerifiedAt:new Date(),
           status: normalizeTransakStatus(w.status),
           provider: "transak",
           providerTxId: w.id ?? existing?.providerTxId ?? undefined,
@@ -385,7 +369,8 @@ onrampRouter.get(
     }
     const ctx = req.params.ctx;
     const tx = await db.fiatTransaction.findFirst({
-      where: { OR: [{ partnerContext: ctx }, { providerTxId: ctx }] },
+      where: { partnerContext: ctx },
+      select:{status:true, cryptoAmount:true, fiatAmount:true, fiatCurrency:true, cryptoAsset:true, type:true, txHash:true},
     });
     res.json({ transaction: tx });
   }),

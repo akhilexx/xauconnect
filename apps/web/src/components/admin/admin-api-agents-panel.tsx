@@ -186,7 +186,7 @@ export function AdminApiAgentsPanel() {
       <p className="text-sm text-ink-muted">
         Swap API traffic from agents and integrations — quotes, builds, and recorded swaps. Agents
         should send <code className="text-xs">X-Client-Id</code> and call{" "}
-        <code className="text-xs">POST /swap/record</code> after execution.
+        <code className="text-xs">POST /swap/record</code> with the build ID and transaction hash after execution.
       </p>
 
       <div className="flex gap-1">

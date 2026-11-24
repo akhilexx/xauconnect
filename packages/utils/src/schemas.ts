@@ -17,7 +17,7 @@ export const AmountSchema = z.preprocess(
     if (typeof v === "bigint") return v.toString();
     return v;
   },
-  z.string().regex(/^\d+$/, "expected base-unit integer string (pass a string or integer number)"),
+  z.string().max(78).regex(/^\d+$/, "expected base-unit integer string (pass a string or integer number)"),
 );
 
 /** Slippage bps; accepts numeric strings from form-encoded / sloppy JSON agents. */
@@ -91,6 +91,8 @@ export const SwapTxSchema = z.object({
     .object({ to: AddressSchema, data: z.string(), value: AmountSchema })
     .optional(),
   solanaTransaction: z.string().optional(),
+  buildId: z.string().uuid().optional(),
+  venue: z.string().optional(),
   /** Result of pre-flight simulation (eth_call / simulateTransaction). */
   simulation: z.object({
     success: z.boolean(),
@@ -303,8 +305,8 @@ export const AuthChallengeRequestSchema = z.object({
 
 export const AuthVerifyRequestSchema = z.object({
   address: AddressSchema,
-  signature: z.string(),
-  nonce: z.string(),
+  signature: z.string().max(1024),
+  nonce: z.string().regex(/^[0-9a-f]{32}$/),
 });
 
 export const SessionSchema = z.object({
@@ -337,6 +339,10 @@ export const AdminMetricsSchema = z.object({
   tokensLaunched: z.number(),
   tvlUsd: z.number(),
   swapCount: z.number(),
+  legacyCount: z.number(),
+  pendingCount: z.number(),
+  reviewCount: z.number(),
+  unpricedCount: z.number(),
   chainBreakdown: z.array(
     z.object({
       chainKey: ChainKeySchema,
@@ -345,6 +351,7 @@ export const AdminMetricsSchema = z.object({
       swaps: z.number(),
     }),
   ),
+  monthSeries: z.array(z.object({ date: z.string(), volumeUsd: z.number(), feesUsd: z.number() })),
   volumeSeries: z.array(z.object({ date: z.string(), volumeUsd: z.number(), feesUsd: z.number() })),
   treasury: z
     .object({

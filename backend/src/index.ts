@@ -29,19 +29,24 @@ import { refreshDiscoveryCache } from "./services/discovery-cache.js";
 import { monitorLimitOrders } from "./services/limit-orders.js";
 import { markGraduatedGoldCurves } from "./services/meteora-dbc.js";
 
+import { checkSettlements } from "./services/settlement/ledger.js";
+
 async function main() {
   logProductionReadiness();
   await initDb();
 
   const app = express();
   app.disable("x-powered-by");
-  app.set("trust proxy", 1);
+  app.set(
+    "trust proxy",
+    process.env.TRUSTED_PROXY_CIDRS?.split(",").map((s) => s.trim()) ?? "loopback",
+  );
 
   app.use(helmet());
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || corsOrigins.includes(origin) || env.NODE_ENV !== "production") {
+        if (!origin || corsOrigins.includes(origin)) {
           callback(null, true);
         } else {
           callback(new Error("CORS: origin not allowed"));
@@ -70,7 +75,9 @@ async function main() {
   });
 
   app.get("/openapi.json", (_req, res) => {
-    res.sendFile("openapi.json", { root: join(dirname(fileURLToPath(import.meta.url)), "..", "openapi") });
+    res.sendFile("openapi.json", {
+      root: join(dirname(fileURLToPath(import.meta.url)), "..", "openapi"),
+    });
   });
 
   app.use("/auth", authRouter);
@@ -90,8 +97,10 @@ async function main() {
   const server = createServer(app);
   attachWebSocket(server);
 
-  server.listen(env.PORT, () => {
+  server.listen(env.PORT, process.env.BIND_ADDRESS || "127.0.0.1", () => {
     logger.info(`XAUConnect backend listening on :${env.PORT}`);
+    void checkSettlements();
+    setInterval(() => void checkSettlements(), 12_000).unref();
     void refreshDiscoveryCache();
     setInterval(() => void refreshDiscoveryCache(), 30_000);
     setInterval(() => void monitorLimitOrders(), 15_000);

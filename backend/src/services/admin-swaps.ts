@@ -11,6 +11,8 @@ import {
 } from "@xauconnect/utils";
 import { db } from "../db/client.js";
 
+import { verifiedWhere } from "./settlement/evidence.js";
+
 export interface AdminSwapRow {
   id: string;
   chainKey: string;
@@ -30,6 +32,7 @@ export interface AdminSwapRow {
   amountOutFormatted: string;
   protocolFee: string;
   protocolFeeFormatted: string;
+  volumePriced: boolean; feePriced: boolean;
   feeBps: number;
   volumeUsd: number;
   feeUsd: number;
@@ -88,6 +91,7 @@ function enrichSwap(row: {
   dexId: string;
   tokenIn: string;
   tokenOut: string;
+  feeToken:string|null; volumePriced:boolean; feePriced:boolean;
   amountIn: { toString(): string };
   amountOut: { toString(): string };
   protocolFee: { toString(): string };
@@ -106,7 +110,7 @@ function enrichSwap(row: {
 }): AdminSwapRow {
   const tokenInMeta = findToken(row.chainKey, row.tokenIn);
   const tokenOutMeta = findToken(row.chainKey, row.tokenOut);
-  const feeToken = tokenOutMeta ?? tokenInMeta;
+  const feeToken = findToken(row.chainKey,row.feeToken ?? "");
   const chain = getChainByKey(row.chainKey);
 
   return {
@@ -127,7 +131,8 @@ function enrichSwap(row: {
     amountInFormatted: formatAmount(row.amountIn.toString(), tokenInMeta),
     amountOutFormatted: formatAmount(row.amountOut.toString(), tokenOutMeta),
     protocolFee: row.protocolFee.toString(),
-    protocolFeeFormatted: formatAmount(row.protocolFee.toString(), feeToken),
+    protocolFeeFormatted: formatAmount(row.protocolFee.toString(), feeToken) + " " + (feeToken?.symbol ?? row.feeToken ?? ""),
+    volumePriced:row.volumePriced,feePriced:row.feePriced,
     feeBps: row.feeBps,
     volumeUsd: row.volumeUsd,
     feeUsd: row.feeUsd,
@@ -158,9 +163,9 @@ export async function listAdminSwaps(
   const skip = (page - 1) * take;
   const q = filters.q?.trim();
 
-  const where: import("@prisma/client").Prisma.SwapWhereInput = {};
+  const where: import("@prisma/client").Prisma.SwapWhereInput = { ...verifiedWhere };
   if (filters.chainKey) where.chainKey = filters.chainKey;
-  if (filters.status) where.status = filters.status;
+  if (filters.status && filters.status !== "confirmed") where.id = {in:[]};
   if (filters.source) where.clientSource = filters.source;
   if (filters.clientId) where.clientId = filters.clientId;
   if (q) {
@@ -176,28 +181,14 @@ export async function listAdminSwaps(
     ];
   }
 
-  const [rows, total, confirmed, failed, pending, aggregates] = await Promise.all([
-    db.swap.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take,
-      skip,
-      include: { user: { select: { displayName: true, address: true } } },
-    }),
-    db.swap.count({ where }),
-    db.swap.count({ where: { ...where, status: "confirmed" } }),
-    db.swap.count({ where: { ...where, status: "failed" } }),
-    db.swap.count({
-      where: {
-        ...where,
-        status: { in: ["quoted", "submitted"] },
-      },
-    }),
+  const [rows, total, aggregates] = await db.$transaction([
+    db.swap.findMany({where,orderBy:{createdAt:"desc"},take,skip,include:{user:{select:{displayName:true,address:true}}}}),
+    db.swap.count({where}),
     db.swap.aggregate({
       where: { ...where, status: "confirmed" },
       _sum: { volumeUsd: true, feeUsd: true },
     }),
-  ]);
+  ],{isolationLevel:"RepeatableRead"});
 
   return {
     swaps: rows.map(enrichSwap),
@@ -205,9 +196,9 @@ export async function listAdminSwaps(
     page,
     summary: {
       total,
-      confirmed,
-      failed,
-      pending,
+      confirmed:total,
+      failed:0,
+      pending:0,
       volumeUsd: aggregates._sum.volumeUsd ?? 0,
       feesUsd: aggregates._sum.feeUsd ?? 0,
     },

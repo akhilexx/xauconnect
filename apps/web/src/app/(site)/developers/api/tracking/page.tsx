@@ -11,7 +11,7 @@ export default function ApiTrackingPage() {
         <li><code>X-Client-Source</code> — <code>agent</code> | <code>api</code> | <code>web</code></li>
       </ul>
       <h2>After swap completes</h2>
-      <p>Call <code>POST /swap/record</code> with <code>source: &quot;agent&quot;</code>, wallet <code>address</code>, and <code>txHash</code> so confirmed swaps appear in the admin Swaps tab.</p>
+      <p>After broadcasting, send <code>buildId</code>, <code>chainKey</code> and <code>txHash</code> to <code>POST /swap/record</code>. A 202 queues verification. Attribution comes from the original build headers.</p>
       <h2>SDK</h2>
       <pre>{`const api = new XauApiClient({
   baseUrl: "https://xauconnect.com/api",

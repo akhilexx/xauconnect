@@ -24,7 +24,8 @@ export function AdminQueryShell<T>({
   }
 
   if (query.isError) {
-    return <Skeleton className={skeletonClass} />;
+    if(isSessionAuthError(query.error)) return <Skeleton className={skeletonClass} />;
+    return <AdminInlineError error={query.error} onRetry={()=>void query.refetch()} />;
   }
 
   if (query.data === undefined) {

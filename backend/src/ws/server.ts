@@ -10,6 +10,7 @@ import {
   type WsChannel,
   type WsServerMessage,
 } from "@xauconnect/utils";
+import { corsOrigins } from "../config.js";
 import { logger } from "../logger.js";
 import { db } from "../db/client.js";
 import { getLiveLaunches } from "../services/launches.js";
@@ -44,6 +45,10 @@ function broadcast(channel: Channel, payload: unknown) {
   const encoded = JSON.stringify(message);
   for (const client of clients) {
     if (client.channels.has(channel) && client.socket.readyState === WebSocket.OPEN) {
+      if (client.socket.bufferedAmount > 256 * 1024) {
+        client.socket.terminate();
+        continue;
+      }
       client.socket.send(encoded);
     }
   }
@@ -81,14 +86,30 @@ async function refreshLaunchBuffer(): Promise<void> {
 }
 
 export function attachWebSocket(server: Server): void {
-  const wss = new WebSocketServer({ server, path: "/ws" });
+  const wss = new WebSocketServer({
+    server,
+    path: "/ws",
+    maxPayload: 4096,
+    perMessageDeflate: false,
+    verifyClient: ({ origin }: {origin: string}) => clients.size < 2000 && (!origin || corsOrigins.includes(origin)),
+  });
 
   wss.on("connection", (socket) => {
     const state: ClientState = { socket, channels: new Set(["prices"]), alive: true };
     clients.add(state);
 
+    let windowStart = Date.now(),
+      frames = 0;
     socket.on("pong", () => (state.alive = true));
     socket.on("message", (raw) => {
+      if (Date.now() - windowStart > 10000) {
+        windowStart = Date.now();
+        frames = 0;
+      }
+      if (++frames > 40) {
+        socket.close(1008, "Too many messages");
+        return;
+      }
       try {
         const parsed = WsClientMessageSchema.safeParse(JSON.parse(raw.toString()));
         if (!parsed.success) return;
@@ -141,6 +162,7 @@ export function attachWebSocket(server: Server): void {
       if (!db) return;
       try {
         const swap = await db.swap.findFirst({
+          where: { verifiedAt: { not: null }, settlementKey: { not: null }, status: "confirmed" },
           orderBy: { createdAt: "desc" },
           select: {
             chainKey: true,

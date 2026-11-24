@@ -33,7 +33,7 @@ import {
 } from "../services/fee-collector-onchain.js";
 
 export const adminRouter = Router();
-adminRouter.use(adminLimiter, requireAdmin);
+adminRouter.use((_req,res,next)=>{res.set("Cache-Control","private, no-store");next();},adminLimiter, requireAdmin);
 
 async function audit(req: { session?: { address: string } }, action: string, resource?: string, detail?: unknown) {
   if (!db) return;
@@ -42,7 +42,7 @@ async function audit(req: { session?: { address: string } }, action: string, res
     : null;
   await db.auditLog
     .create({
-      data: { actorId: actor?.id, action, resource, detail: detail as object | undefined },
+      data: { actorId: actor?.id, action, resource, detail: { ...(detail as object ?? {}), actorAddress:req.session?.address } },
     })
     .catch(() => {});
 }
@@ -66,15 +66,7 @@ adminRouter.get(
 adminRouter.get(
   "/swaps",
   asyncHandler(async (req, res) => {
-    if (!db) {
-      res.json({
-        swaps: [],
-        total: 0,
-        page: 1,
-        summary: { total: 0, confirmed: 0, failed: 0, pending: 0, volumeUsd: 0, feesUsd: 0 },
-      });
-      return;
-    }
+    if (!db) throw new ApiError(503,"Settlement ledger unavailable","LEDGER_UNAVAILABLE");
     res.json(
       await listAdminSwaps({
         page: Math.max(1, Number(req.query.page ?? 1)),
@@ -164,6 +156,7 @@ adminRouter.post(
     if ("selectAll" in body) {
       try {
         const result = await deleteApiRequestLogsByFilter(parseApiUsageFiltersFromBody(body.filters ?? {}));
+        await audit(req,"api_log.delete",undefined,result);
         res.json(result);
       } catch (err) {
         throw new ApiError(400, err instanceof Error ? err.message : "Delete failed", "DELETE_FAILED");
@@ -171,7 +164,8 @@ adminRouter.post(
       return;
     }
     const result = await deleteApiRequestLogs(body.ids);
-    res.json(result);
+    await audit(req,"api_log.delete",undefined,result);
+        res.json(result);
   }),
 );
 
@@ -201,6 +195,7 @@ adminRouter.patch(
           parseApiUsageFiltersFromBody(body.filters ?? {}),
           patch,
         );
+        await audit(req,"api_log.update",undefined,result);
         res.json(result);
       } catch (err) {
         throw new ApiError(400, err instanceof Error ? err.message : "Bulk update failed", "BULK_FAILED");
@@ -208,7 +203,8 @@ adminRouter.patch(
       return;
     }
     const result = await bulkUpdateApiRequestLogs(body.ids, patch);
-    res.json(result);
+    await audit(req,"api_log.update",undefined,result);
+        res.json(result);
   }),
 );
 
@@ -369,7 +365,7 @@ adminRouter.get(
         take: pageSize,
       }),
       db.fiatTransaction.count({ where }),
-      db.fiatTransaction.findMany({ select: { status: true, fiatAmount: true, partnerFeeFiat: true } }),
+      db.fiatTransaction.findMany({ select: { status: true,providerVerifiedAt:true, fiatCurrency:true, fiatAmount: true, partnerFeeFiat: true } }),
     ]);
     const summary = all.reduce(
       (acc, t) => {
@@ -377,8 +373,7 @@ adminRouter.get(
         if (t.status === "completed") acc.completed += 1;
         else if (t.status === "failed" || t.status === "expired") acc.failed += 1;
         else acc.pending += 1;
-        acc.volumeUsd += t.fiatAmount ?? 0;
-        acc.feeUsd += t.partnerFeeFiat ?? 0;
+        if(t.providerVerifiedAt && t.status==="completed" && t.fiatCurrency==="USD"){acc.volumeUsd += t.fiatAmount ?? 0; acc.feeUsd += t.partnerFeeFiat ?? 0;}
         return acc;
       },
       { total: 0, completed: 0, pending: 0, failed: 0, feeUsd: 0, volumeUsd: 0 },

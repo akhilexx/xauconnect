@@ -1,110 +1,102 @@
-/**
- * Admin metrics service — aggregates platform KPIs from the database only.
- * Returns zeros when the database is empty; never fabricates demo figures.
- */
-import type { AdminMetrics } from "@xauconnect/utils";
-import { CHAIN_KEYS } from "@xauconnect/utils";
+import { CHAIN_KEYS, type AdminMetrics } from "@xauconnect/utils";
 import { db } from "../db/client.js";
 import { cached } from "../cache.js";
-
-const EMPTY: AdminMetrics = {
-  totalVolumeUsd: 0,
-  feesEarnedUsd: 0,
-  activeUsers24h: 0,
-  totalUsers: 0,
-  tokensLaunched: 0,
-  tvlUsd: 0,
-  swapCount: 0,
-  chainBreakdown: CHAIN_KEYS.map((chainKey) => ({
-    chainKey,
-    volumeUsd: 0,
-    feesUsd: 0,
-    swaps: 0,
-  })),
-  volumeSeries: [],
-};
-
-function last30Days(): string[] {
-  return Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(Date.now() - (29 - i) * 86_400_000);
-    return d.toISOString().slice(0, 10);
-  });
-}
+import { ApiError } from "../middleware/error.js";
+import { verifiedWhere } from "./settlement/evidence.js";
 
 export async function adminMetrics(): Promise<
   AdminMetrics & { persisted: boolean; hasData: boolean }
 > {
-  return cached("admin:metrics", 30, async () => {
-    if (!db) return { ...EMPTY, persisted: false, hasData: false };
-
-    try {
-      const since24h = new Date(Date.now() - 86_400_000);
-      const since30d = new Date(Date.now() - 30 * 86_400_000);
-      since30d.setUTCHours(0, 0, 0, 0);
-
-      const [volumeAgg, totalUsers, activeUsers, tokensLaunched, swapCount, byChain, daily] =
-        await Promise.all([
-          db.swap.aggregate({ _sum: { volumeUsd: true, feeUsd: true } }),
-          db.user.count(),
-          db.user.count({ where: { lastSeenAt: { gte: since24h } } }),
-          db.launch.count({ where: { status: { in: ["DEPLOYED", "GRADUATED"] } } }),
-          db.swap.count(),
-          db.swap.groupBy({
+  if (!db) throw new ApiError(503, "Settlement ledger unavailable", "LEDGER_UNAVAILABLE");
+  const client = db;
+  return cached("admin:settlement-metrics:v1", 15, async () => {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const start = new Date(+today - 29 * 86400000);
+    const firstMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 11, 1));
+    const [
+      chains,
+      daily,
+      monthly,
+      totalUsers,
+      activeUsers24h,
+      tokensLaunched,
+      legacyCount,
+      pendingCount,
+      reviewCount,
+      unpricedCount,
+      tvl,
+    ] = await client.$transaction(
+      async (tx) =>
+        Promise.all([
+          tx.swap.groupBy({
             by: ["chainKey"],
+            where: verifiedWhere,
             _sum: { volumeUsd: true, feeUsd: true },
             _count: { _all: true },
           }),
-          db.chainStat.findMany({
-            where: { date: { gte: since30d } },
-            orderBy: { date: "asc" },
+          tx.$queryRaw<Array<{ day: Date; volume: number; fees: number }>>`
+          SELECT date_trunc('day',"createdAt") AS day,SUM("volumeUsd") AS volume,SUM("feeUsd") AS fees
+          FROM "Swap" WHERE "verifiedAt" IS NOT NULL AND "settlementKey" IS NOT NULL AND status='confirmed'
+          AND "createdAt">=${start} GROUP BY 1 ORDER BY 1`,
+          tx.$queryRaw<Array<{ day: Date; volume: number; fees: number }>>`
+            SELECT date_trunc('month',"createdAt") AS day,SUM("volumeUsd") AS volume,SUM("feeUsd") AS fees
+            FROM "Swap" WHERE "verifiedAt" IS NOT NULL AND "settlementKey" IS NOT NULL AND status='confirmed'
+            AND "createdAt">=${firstMonth} GROUP BY 1 ORDER BY 1`,
+          tx.user.count(),
+          tx.user.count({ where: { lastSeenAt: { gte: new Date(Date.now() - 86400000) } } }),
+          tx.launch.count({ where: { status: { in: ["DEPLOYED", "GRADUATED"] } } }),
+          tx.swap.count({ where: { verifiedAt: null } }),
+          tx.swapVerification.count({ where: { state: "pending" } }),
+          tx.swapVerification.count({ where: { state: "review" } }),
+          tx.swap.count({
+            where: { ...verifiedWhere, OR: [{ volumePriced: false }, { feePriced: false }] },
           }),
-        ]);
-
-      const chainMap = new Map(
-        byChain.map((c) => [
-          c.chainKey,
-          {
-            chainKey: c.chainKey,
-            volumeUsd: c._sum.volumeUsd ?? 0,
-            feesUsd: c._sum.feeUsd ?? 0,
-            swaps: c._count._all,
-          },
+          tx.chainStat.aggregate({ where: { date: { gte: start } }, _max: { tvlUsd: true } }),
         ]),
-      );
-
-      const seriesMap = new Map<string, { volumeUsd: number; feesUsd: number }>();
-      for (const day of last30Days()) {
-        seriesMap.set(day, { volumeUsd: 0, feesUsd: 0 });
-      }
-      for (const stat of daily) {
-        const key = stat.date.toISOString().slice(0, 10);
-        const entry = seriesMap.get(key) ?? { volumeUsd: 0, feesUsd: 0 };
-        entry.volumeUsd += stat.volumeUsd;
-        entry.feesUsd += stat.feesUsd;
-        seriesMap.set(key, entry);
-      }
-
-      const totalVolumeUsd = volumeAgg._sum.volumeUsd ?? 0;
-      const hasData = swapCount > 0 || tokensLaunched > 0 || totalUsers > 0;
-
+      { isolationLevel: "RepeatableRead" },
+    );
+    const chainBreakdown = CHAIN_KEYS.map((chainKey) => {
+      const c = chains.find((x) => x.chainKey === chainKey);
       return {
-        totalVolumeUsd,
-        feesEarnedUsd: volumeAgg._sum.feeUsd ?? 0,
-        activeUsers24h: activeUsers,
-        totalUsers,
-        tokensLaunched,
-        tvlUsd: daily.reduce((max, s) => Math.max(max, s.tvlUsd), 0),
-        swapCount,
-        chainBreakdown: CHAIN_KEYS.map(
-          (chainKey) =>
-            chainMap.get(chainKey) ?? { chainKey, volumeUsd: 0, feesUsd: 0, swaps: 0 },
-        ),
-        volumeSeries: [...seriesMap.entries()].map(([date, v]) => ({ date, ...v })),
-        persisted: true,
-        hasData,
+        chainKey,
+        volumeUsd: c?._sum.volumeUsd ?? 0,
+        feesUsd: c?._sum.feeUsd ?? 0,
+        swaps: c?._count._all ?? 0,
       };
-    } catch {
-      return { ...EMPTY, persisted: true, hasData: false };
-    }
+    });
+    const volumeSeries = Array.from({ length: 30 }, (_, i) => {
+      const date = new Date(+start + i * 86400000).toISOString().slice(0, 10);
+      const d = daily.find((row) => row.day.toISOString().slice(0, 10) === date);
+      return { date, volumeUsd: d?.volume ?? 0, feesUsd: d?.fees ?? 0 };
+    });
+    const sum = (f: "swaps" | "volumeUsd" | "feesUsd") =>
+      chainBreakdown.reduce((a, c) => a + c[f], 0);
+    return {
+      totalVolumeUsd: sum("volumeUsd"),
+      feesEarnedUsd: sum("feesUsd"),
+      swapCount: sum("swaps"),
+      chainBreakdown,
+      volumeSeries,
+      monthSeries: Array.from({ length: 12 }, (_, i) => {
+        const date = new Date(
+          Date.UTC(firstMonth.getUTCFullYear(), firstMonth.getUTCMonth() + i, 1),
+        )
+          .toISOString()
+          .slice(0, 10);
+        const d = monthly.find((row) => row.day.toISOString().slice(0, 10) === date);
+        return { date, volumeUsd: d?.volume ?? 0, feesUsd: d?.fees ?? 0 };
+      }),
+      totalUsers,
+      activeUsers24h,
+      tokensLaunched,
+      tvlUsd: tvl._max.tvlUsd ?? 0,
+      legacyCount,
+      pendingCount,
+      reviewCount,
+      unpricedCount,
+      persisted: true,
+      hasData: sum("swaps") > 0,
+    };
   });
 }

@@ -16,6 +16,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { parseAbiItem, parseEventLogs } from "viem";
 import { VersionedTransaction } from "@solana/web3.js";
 import {
   ArrowLeft,
@@ -260,7 +261,10 @@ export function LaunchWizard() {
 
       // Step C — wait for the receipt and record the launch (auto-listing).
       const receipt = await publicClient?.waitForTransactionReceipt({ hash });
-      const tokenAddress = receipt?.logs[0]?.address ?? "";
+      if(receipt?.status!=="success")throw new Error("Deployment has not been confirmed");
+      const deployedEvents=parseEventLogs({abi:[parseAbiItem("event LaunchCreated(address indexed token,address indexed creator,string name,string symbol,string metadataURI)"),parseAbiItem("event TokenCreated(address indexed token,address indexed creator,string name,string symbol,uint256 totalSupply,string metadataURI,uint256 launchFeePaid)")],logs:receipt.logs.filter(l=>l.address.toLowerCase()===target.toLowerCase())});
+      const tokenAddress=deployedEvents.find(e=>e.args.creator.toLowerCase()===address.toLowerCase())?.args.token;
+      if(!tokenAddress) throw new Error("No deployment receipt found");
       if (tokenAddress) {
         await api.recordLaunch({
           launch,

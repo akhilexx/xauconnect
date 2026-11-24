@@ -88,11 +88,9 @@ Content-Type: application/json
         <li><strong>Solana:</strong> sign the transaction bytes, then <code>POST /swap/submit-solana</code>.</li>
       </ul>
       <pre>{`POST /api/swap/record
-{ "chainKey": "ethereum", "dexId": "1inch-ethereum", "tokenIn": "...", "tokenOut": "...",
-  "amountIn": "1000000000000000000", "amountOut": "3187420000", "protocolFee": "...",
-  "feeBps": 30, "txHash": "0x...", "address": "0xYou", "status": "confirmed",
-  "source": "agent", "clientId": "my-bot-v1" }`}</pre>
+{ "chainKey": "ethereum", "buildId": "<id from build>", "txHash": "0x..." }`}</pre>
 
+      <p>A 202 means verification is queued. The server checks finality, the signed build and asset movements before recording a settlement.</p>
       <h2>Errors</h2>
       <p>Errors return a non-2xx status and <code>{`{ "error": { "message", "code" } }`}</code>. Common codes:</p>
       <ul>

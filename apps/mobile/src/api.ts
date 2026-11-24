@@ -132,7 +132,18 @@ export const api = {
     ),
 };
 
-export { formatUsd } from "@xauconnect/utils";
+// Expo is installed independently of the workspace. Keep USD amounts readable
+// even for sub-cent token prices without importing a web-only package path.
+export function formatUsd(value: number): string {
+  if (!Number.isFinite(value)) return "$0.00";
+  const abs = Math.abs(value);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency", currency: "USD",
+    notation: abs >= 1000 ? "compact" : "standard",
+    minimumFractionDigits: abs > 0 && abs < .01 ? 0 : 2,
+    maximumFractionDigits: abs > 0 && abs < .01 ? 12 : 2,
+  }).format(value);
+}
 
 export function formatPercent(value: number): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(2)}%`;

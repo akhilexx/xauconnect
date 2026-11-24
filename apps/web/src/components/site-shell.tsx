@@ -11,6 +11,8 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hideDock = pathname.startsWith("/xaxmd5");
 
+  if (pathname === "/xaxmd5" || pathname === "/xaxmd5/") return <main className="relative z-[1]">{children}</main>;
+
   return (
     <div
       className={cn(

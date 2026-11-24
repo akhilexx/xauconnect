@@ -67,6 +67,7 @@ export function isSessionAuthError(error: unknown): boolean {
 
 /** Clear session and API token. */
 export function logoutSession(): void {
+  if(useSessionStore.getState().token) void api.signOut().catch(()=>{});
   useSessionStore.getState().clearSession();
   clearAdminQueries();
 }

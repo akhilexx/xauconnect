@@ -38,6 +38,7 @@ async function buildEvmMetaSwapTx(
     return {
       chainKey,
       evm: metaTx,
+      venue: route.dexId.startsWith("1inch-") ? "1inch-" + chainKey : "0x-" + chainKey,
       simulation: { success: true, expectedOut: route.amountOutAfterFee },
     };
   }
@@ -82,6 +83,7 @@ async function buildMetaIntegratorFallback(
       return {
         chainKey,
         evm: metaTx,
+        venue: (build === build0xSwap ? "0x-" : "1inch-") + chainKey,
         simulation: { success: true, expectedOut },
       };
     }
@@ -135,7 +137,7 @@ async function buildOwnRouterSwapTx(
     }
   }
 
-  return { chainKey, evm: { to: router, data, value }, simulation };
+  return { chainKey, venue: dex?.id ?? "protocol-router", evm: { to: router, data, value }, simulation };
 }
 
 export async function buildSwapTx(
@@ -145,7 +147,7 @@ export async function buildSwapTx(
 ): Promise<SwapTx> {
   const chain = chainByKeyStrict(req.chainKey);
   const feeBps = await swapFeeBpsFor(req.chainKey);
-  const taker = req.taker ? normalizeEvmAddress(req.taker) : null;
+  const taker = chain.kind === "solana" ? req.taker : normalizeEvmAddress(req.taker);
   const reqWithTaker = taker ? { ...req, taker } : req;
 
   if (chain.kind === "solana") {
@@ -200,6 +202,7 @@ export async function buildSwapTx(
     return {
       chainKey: req.chainKey,
       solanaTransaction: serialized,
+      venue: route.dexId.includes("meteora-dbc") ? "meteora-dbc-solana" : "jupiter-solana",
       simulation: { success: true, expectedOut: route.amountOutAfterFee },
     };
   }

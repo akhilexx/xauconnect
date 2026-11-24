@@ -13,6 +13,12 @@ const nextConfig = {
   // (Caddy) handles /api and /ws before Next ever sees them; this rewrite is
   // the fallback so /api also works under plain `next dev` / `next start`.
   // (WebSockets do NOT proxy through Next — that's what Caddy is for.)
+  async headers() {
+    return [{ source:"/xaxmd5/:path*",headers:[
+      {key:"Content-Security-Policy",value:"frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"},
+      {key:"X-Frame-Options",value:"DENY"},{key:"Referrer-Policy",value:"no-referrer"},
+      {key:"X-Robots-Tag",value:"noindex, nofollow, noarchive"}]}];
+  },
   async rewrites() {
     const backend = process.env.BACKEND_INTERNAL_URL ?? "http://127.0.0.1:4000";
     return [{ source: "/api/:path*", destination: `${backend}/:path*` }];

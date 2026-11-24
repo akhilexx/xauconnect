@@ -7,6 +7,7 @@ import { env } from "./config.js";
 import { logger } from "./logger.js";
 
 export interface Cache {
+  take(key: string): Promise<string | null>;
   get(key: string): Promise<string | null>;
   set(key: string, value: string, ttlSeconds?: number): Promise<void>;
   del(key: string): Promise<void>;
@@ -21,6 +22,12 @@ class MemoryCache implements Cache {
     if (this.store.size < 10_000) return;
     const now = Date.now();
     for (const [k, v] of this.store) if (v.expiresAt < now) this.store.delete(k);
+  }
+
+  take(key: string) {
+    const result = this.get(key);
+    this.store.delete(key);
+    return result;
   }
 
   async get(key: string) {
@@ -43,8 +50,9 @@ class MemoryCache implements Cache {
   }
 
   async incr(key: string, ttlSeconds: number) {
-    const current = Number((await this.get(key)) ?? "0") + 1;
-    const existing = this.store.get(key);
+    const entry = this.store.get(key);
+    const existing = entry && entry.expiresAt > Date.now() ? entry : undefined;
+    const current = Number(existing?.value ?? 0) + 1;
     this.store.set(key, {
       value: String(current),
       expiresAt: existing ? existing.expiresAt : Date.now() + ttlSeconds * 1000,
@@ -55,6 +63,13 @@ class MemoryCache implements Cache {
 
 class RedisCache implements Cache {
   constructor(private redis: Redis) {}
+  async take(key: string) {
+    return (await this.redis.eval(
+      "local v=redis.call('GET',KEYS[1]); redis.call('DEL',KEYS[1]); return v",
+      1,
+      key,
+    )) as string | null;
+  }
 
   async get(key: string) {
     return this.redis.get(key);

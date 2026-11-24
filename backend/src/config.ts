@@ -3,6 +3,7 @@
  * Production requires DATABASE_URL, RPC_* endpoints, and aggregator API keys.
  */
 import "dotenv/config";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 
 const EnvSchema = z.object({
@@ -10,7 +11,14 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().default(4000),
   DATABASE_URL: z.string().optional(),
   REDIS_URL: z.string().optional(),
-  JWT_SECRET: z.string().default("dev-secret-change-me"),
+  JWT_SECRET: z
+    .string()
+    .min(32)
+    .refine((v) => !/^replace-with|^dev-secret/i.test(v), "Use a random signing key")
+    .default(() => {
+      if (process.env.NODE_ENV === "production") throw new Error("JWT_SECRET is required");
+      return randomBytes(48).toString("hex");
+    }),
   ADMIN_ADDRESSES: z.string().default(""),
   /** Credentials for the /admin/login console (override via env). */
   ADMIN_EMAIL: z.string().default(""),

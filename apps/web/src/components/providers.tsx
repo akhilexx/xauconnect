@@ -4,7 +4,8 @@
  * Global client providers:
  *   TanStack Query -> wagmi -> RainbowKit (EVM) -> Solana wallet adapter + modal.
  */
-import { Suspense, useMemo, useState, type ReactNode } from "react";
+import { retrySubmissions } from "@/lib/settlement-outbox";
+import { useEffect, Suspense, useMemo, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 import { RainbowKitProvider, lightTheme } from "@rainbow-me/rainbowkit";
@@ -30,6 +31,9 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 if (typeof window !== "undefined") bootstrapSessionToken();
 
 export function Providers({ children }: { children: ReactNode }) {
+  useEffect(()=>{retrySubmissions();window.addEventListener("online",retrySubmissions);
+    const timer=setInterval(retrySubmissions,60_000);
+    return()=>{clearInterval(timer);window.removeEventListener("online",retrySubmissions);};},[]);
   const [queryClient] = useState(() => {
     const client = new QueryClient({
       defaultOptions: {

@@ -8,7 +8,7 @@ import { Badge, GlassButton, GlassCard, Skeleton, toast } from "@xauconnect/ui";
 import type { LimitOrder } from "@xauconnect/sdk";
 import { api } from "@/lib/api";
 import { userFacingError } from "@/lib/user-errors";
-import { useSlippageStore } from "@/lib/store";
+import { useSessionStore, useSlippageStore } from "@/lib/store";
 
 export interface LimitOrdersPanelProps {
   chainKey: string;
@@ -29,6 +29,8 @@ export function LimitOrdersPanel({
   spotPriceUsd,
   onExecuteTriggered,
 }: LimitOrdersPanelProps) {
+  const session=useSessionStore();
+  const signedIn=Boolean(userAddress && session.token && (chainKey==="solana" ? session.address===userAddress : session.address?.toLowerCase()===userAddress.toLowerCase()));
   const { slippageBps } = useSlippageStore();
   const queryClient = useQueryClient();
   const [targetPrice, setTargetPrice] = useState("");
@@ -36,12 +38,13 @@ export function LimitOrdersPanel({
 
   const ordersQuery = useQuery({
     queryKey: ["limit-orders", userAddress, chainKey],
-    enabled: Boolean(userAddress),
+    enabled: signedIn,
     refetchInterval: 12_000,
     queryFn: () => api.listLimitOrders(userAddress!, chainKey),
   });
 
   async function createOrder() {
+    if (!signedIn) {toast.error("Sign in with this wallet to manage limit orders"); return;}
     if (!userAddress || !tokenIn || !tokenOut || !amountInBase) {
       toast.error("Connect wallet and enter swap amount first");
       return;

@@ -11,12 +11,15 @@
  */
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { env } from "../config.js";
+import { randomUUID } from "node:crypto";
+import { cache } from "../cache.js";
+import { adminAddresses, env } from "../config.js";
 import { ApiError } from "./error.js";
 
 export interface SessionPayload {
   address: string;
   role: "USER" | "ADMIN";
+  jti?: string;
 }
 
 declare global {
@@ -29,14 +32,36 @@ declare global {
 }
 
 export function signSession(payload: SessionPayload): string {
-  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: "7d", issuer: "xauconnect" });
+  return jwt.sign(payload, env.JWT_SECRET, {
+    algorithm: "HS256",
+    audience: "xau-session-v2",
+    jwtid: randomUUID(),
+    expiresIn: payload.role === "ADMIN" ? "30m" : "7d",
+    issuer: "xauconnect",
+  });
 }
 
 export function verifySessionToken(token: string): SessionPayload {
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET, { issuer: "xauconnect" }) as SessionPayload &
-      jwt.JwtPayload;
-    return { address: decoded.address, role: decoded.role };
+    const decoded = jwt.verify(token, env.JWT_SECRET, {
+      algorithms: ["HS256"],
+      audience: "xau-session-v2",
+      issuer: "xauconnect",
+    }) as SessionPayload & jwt.JwtPayload;
+    if (
+      !decoded.jti ||
+      typeof decoded.address !== "string" ||
+      !["ADMIN", "USER"].includes(decoded.role)
+    )
+      throw new Error();
+    if (
+      decoded.role === "ADMIN" &&
+      (decoded.address === "admin:console"
+        ? !env.ADMIN_PASSWORD
+        : !adminAddresses.has(decoded.address))
+    )
+      throw new Error();
+    return { address: decoded.address, role: decoded.role, jti: decoded.jti };
   } catch {
     throw new ApiError(401, "Invalid or expired session token", "UNAUTHORIZED");
   }
@@ -49,8 +74,19 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
     next(new ApiError(401, "Missing Authorization header", "UNAUTHORIZED"));
     return;
   }
-  req.session = verifySessionToken(header.slice(7));
-  next();
+  const raw = header.slice(7);
+  // A custom Authorization header is required even for cookie sessions (CSRF protection).
+  const token =
+    raw === "cookie-session"
+      ? /(?:^|;\s*)xau_admin=([^;]+)/.exec(req.headers.cookie ?? "")?.[1]
+      : raw;
+  req.session = verifySessionToken(token ?? "");
+  if (req.session.role === "ADMIN") {
+    void cache
+      .get("auth:active:" + req.session.jti)
+      .then((v) => next(!v ? new ApiError(401, "Session expired", "UNAUTHORIZED") : undefined))
+      .catch(() => next(new ApiError(503, "Session store unavailable", "AUTH_UNAVAILABLE")));
+  } else next();
 }
 
 /** Require the ADMIN role (admin dashboard endpoints). */

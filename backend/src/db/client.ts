@@ -45,6 +45,7 @@ async function tryConnect(attempt: number): Promise<boolean> {
     return true;
   } catch (err) {
     logger.error({ err: (err as Error).message, attempt }, "database unreachable");
+    if(db===client) db=null;
     await client.$disconnect().catch(() => {});
     return false;
   }

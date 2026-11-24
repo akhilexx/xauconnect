@@ -1,6 +1,7 @@
 /**
  * Admin API usage analytics — request logs and aggregate stats for agent/API traffic.
  */
+import { verifiedWhere } from "./settlement/evidence.js";
 import { db } from "../db/client.js";
 
 export interface ApiUsageSummary {
@@ -107,7 +108,7 @@ export async function getApiUsageSummary(): Promise<ApiUsageSummary> {
       }),
       db.swap.groupBy({
         by: ["clientSource"],
-        where: { status: "confirmed", createdAt: { gte: d7 } },
+        where: { ...verifiedWhere, createdAt: { gte: d7 } },
         _count: { _all: true },
       }),
       db.apiRequestLog.findMany({

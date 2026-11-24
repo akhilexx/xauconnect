@@ -309,11 +309,7 @@ export function AdminWalletsPanel() {
           <p className="text-sm text-ink-muted">
             Protocol wallets for treasury, fee collection, and operations — grouped by key across chains.
           </p>
-          <p className="mt-1 text-xs text-ink-faint">
-            Private keys and mnemonics are stored only in{" "}
-            <code className="rounded bg-white/60 px-1 py-0.5">.local/protocol-wallets-SECRETS.txt</code> on the
-            operator machine — never in this dashboard.
-          </p>
+
         </div>
         <GlassButton size="sm" className="w-full shrink-0 sm:w-auto" onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4" /> Add wallet
