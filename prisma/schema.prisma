@@ -425,6 +425,7 @@ model IndexedPool {
 
   @@unique([chainKey, poolAddress])
   @@index([chainKey, baseTokenAddress])
+  @@index([chainKey, isActive, createdAt(sort: Desc)])
   @@index([createdAt])
 }
 

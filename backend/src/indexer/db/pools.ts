@@ -1,12 +1,11 @@
 /**
  * Indexed pool DB helpers.
  */
-import type { IndexedPool } from "@prisma/client";
+import { Prisma, type IndexedPool } from "@prisma/client";
 import { CHAIN_KEYS, type MarketToken } from "@xauconnect/utils";
 import { db } from "../../db/client.js";
 import { dexBatchRefresh } from "../../services/dexscreener.js";
 import { tokenCacheKey } from "../../services/token-address.js";
-import { tokenStatsFromDb } from "../stats/token-stats.js";
 
 export async function findPoolForToken(
   chainKey: string,
@@ -38,8 +37,7 @@ export async function upsertIndexedPool(data: {
   creatorAddress?: string;
 }): Promise<IndexedPool | null> {
   if (!db) return null;
-  const poolAddr =
-    data.chainKey === "solana" ? data.poolAddress : data.poolAddress.toLowerCase();
+  const poolAddr = data.chainKey === "solana" ? data.poolAddress : data.poolAddress.toLowerCase();
   return db.indexedPool.upsert({
     where: { chainKey_poolAddress: { chainKey: data.chainKey, poolAddress: poolAddr } },
     create: {
@@ -67,47 +65,77 @@ export async function dbRecentIndexedPools(limit = 24): Promise<MarketToken[]> {
   if (!db) return [];
   try {
     const perChain = Math.max(4, Math.ceil(limit / CHAIN_KEYS.length));
-    const poolGroups = await Promise.all(
-      CHAIN_KEYS.map((chainKey) =>
-        db!.indexedPool.findMany({
-          where: { isActive: true, chainKey },
-          orderBy: { createdAt: "desc" },
-          take: perChain,
-          include: {
-            snapshots: { orderBy: { capturedAt: "desc" }, take: 1 },
-          },
-        }),
-      ),
-    );
-    const pools = poolGroups
-      .flat()
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
-
-    const base = await Promise.all(
-      pools.map(async (p) => {
-        const snap = p.snapshots[0];
-        const stats = await tokenStatsFromDb(p.chainKey, p.baseTokenAddress);
-        return {
-          chainKey: p.chainKey,
-          address: p.baseTokenAddress,
-          symbol: p.token0Symbol ?? p.token1Symbol ?? "?",
-          name: p.token0Symbol ?? p.token1Symbol ?? "Unknown",
-          priceUsd: snap?.priceUsd ?? 0,
-          change24hPct: stats.change24hPct,
-          change1hPct: stats.change1hPct,
-          volume24hUsd: stats.volume24hUsd,
-          liquidityUsd: snap?.liquidityUsd ?? 0,
-          createdAt: p.createdAt.getTime(),
-          xauLaunch: false,
-          auditBadge: "none" as const,
-        };
-      }),
-    );
+    // Batch the per-chain lists and indexed stats into one read. The previous
+    // fan-out queued up to five queries per pool on every feed refresh.
+    const now = Date.now();
+    const hour = new Date(now - 3_600_000),
+      day = new Date(now - 86_400_000);
+    const pools = await db.$queryRaw<
+      Array<{
+        chainKey: string;
+        baseTokenAddress: string;
+        token0Symbol: string | null;
+        token1Symbol: string | null;
+        createdAt: Date;
+        priceUsd: number | null;
+        liquidityUsd: number | null;
+        price1h: number | null;
+        price24h: number | null;
+        volume24hUsd: number;
+      }>
+    >`
+      WITH recent AS MATERIALIZED (
+        SELECT p.*
+        FROM (VALUES ${Prisma.join(CHAIN_KEYS.map((key) => Prisma.sql`(${key}::text)`))}) AS chain(key)
+        CROSS JOIN LATERAL (
+          SELECT "id", "chainKey", "baseTokenAddress", "token0Symbol", "token1Symbol", "createdAt"
+          FROM "IndexedPool"
+          WHERE "chainKey" = chain.key AND "isActive"
+          ORDER BY "createdAt" DESC
+          LIMIT ${perChain}
+        ) p
+        ORDER BY p."createdAt" DESC
+        LIMIT ${limit}
+      )
+      SELECT p.*, latest."priceUsd", latest."liquidityUsd",
+        older_hour."priceUsd" AS "price1h", older_day."priceUsd" AS "price24h",
+        COALESCE((SELECT SUM("volumeUsd") FROM "SwapEvent"
+          WHERE "poolId" = p.id AND "blockTime" >= ${day}), 0) AS "volume24hUsd"
+      FROM recent p
+      LEFT JOIN LATERAL (
+        SELECT "priceUsd", "liquidityUsd" FROM "PoolSnapshot"
+        WHERE "poolId" = p.id ORDER BY "capturedAt" DESC LIMIT 1
+      ) latest ON true
+      LEFT JOIN LATERAL (
+        SELECT "priceUsd" FROM "PoolSnapshot" WHERE "poolId" = p.id AND "capturedAt" <= ${hour}
+        ORDER BY "capturedAt" DESC LIMIT 1
+      ) older_hour ON true
+      LEFT JOIN LATERAL (
+        SELECT "priceUsd" FROM "PoolSnapshot" WHERE "poolId" = p.id AND "capturedAt" <= ${day}
+        ORDER BY "capturedAt" DESC LIMIT 1
+      ) older_day ON true
+      ORDER BY p."createdAt" DESC
+    `;
+    const change = (current: number | null, older: number | null) =>
+      current !== null && older !== null && older > 0 ? ((current - older) / older) * 100 : 0;
+    const base: MarketToken[] = pools.map((p) => ({
+      chainKey: p.chainKey,
+      address: p.baseTokenAddress,
+      symbol: p.token0Symbol ?? p.token1Symbol ?? "?",
+      name: p.token0Symbol ?? p.token1Symbol ?? "Unknown",
+      priceUsd: p.priceUsd ?? 0,
+      change24hPct: change(p.priceUsd, p.price24h),
+      change1hPct: change(p.priceUsd, p.price1h),
+      volume24hUsd: p.volume24hUsd,
+      liquidityUsd: p.liquidityUsd ?? 0,
+      createdAt: p.createdAt.getTime(),
+      xauLaunch: false,
+      auditBadge: "none",
+    }));
 
     const enriched = await dexBatchRefresh(base);
     return enriched.map((t, i) => {
-      const snap = pools[i]?.snapshots[0];
+      const snap = pools[i];
       if (snap?.priceUsd && snap.priceUsd > 0) {
         return {
           ...t,
@@ -123,10 +151,19 @@ export async function dbRecentIndexedPools(limit = 24): Promise<MarketToken[]> {
   }
 }
 
-export function isQuoteAsset(chainKey: string, address: string, chain: { usdc?: string; wrappedNative?: string }): boolean {
+export function isQuoteAsset(
+  chainKey: string,
+  address: string,
+  chain: { usdc?: string; wrappedNative?: string },
+): boolean {
   const a = chainKey === "solana" ? address : address.toLowerCase();
-  if (chain.usdc && a === (chainKey === "solana" ? chain.usdc : chain.usdc.toLowerCase())) return true;
-  if (chain.wrappedNative && a === (chainKey === "solana" ? chain.wrappedNative : chain.wrappedNative.toLowerCase())) return true;
+  if (chain.usdc && a === (chainKey === "solana" ? chain.usdc : chain.usdc.toLowerCase()))
+    return true;
+  if (
+    chain.wrappedNative &&
+    a === (chainKey === "solana" ? chain.wrappedNative : chain.wrappedNative.toLowerCase())
+  )
+    return true;
   return false;
 }
 

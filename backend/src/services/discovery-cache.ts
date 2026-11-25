@@ -9,6 +9,7 @@ import { getLiveLaunches } from "./launches.js";
 import { dexNewLaunches, dexTrendingTokens } from "./dexscreener.js";
 import { gtNewLaunches } from "./geckoterminal.js";
 import { tokenCacheKey } from "./token-address.js";
+import { singleFlight } from "../lib/single-flight.js";
 import { logger } from "../logger.js";
 
 const REFRESH_MS = 30_000;
@@ -81,7 +82,7 @@ function ensureChainMix(tokens: CachedToken[]): CachedToken[] {
   return mixed;
 }
 
-export async function refreshDiscoveryCache(): Promise<CachedToken[]> {
+export const refreshDiscoveryCache = singleFlight(async (): Promise<CachedToken[]> => {
   try {
     const raw = await fetchAllSources();
     const now = Date.now();
@@ -91,11 +92,13 @@ export async function refreshDiscoveryCache(): Promise<CachedToken[]> {
     logger.debug({ err: (err as Error).message }, "discovery cache refresh failed");
   }
   return pool;
-}
+});
 
 export async function getDiscoveryPool(): Promise<CachedToken[]> {
   if (pool.length === 0 || Date.now() - refreshedAt >= REFRESH_MS) {
-    await refreshDiscoveryCache();
+    // Keep serving the existing snapshot while one refresh is in progress.
+    if (pool.length > 0) void refreshDiscoveryCache();
+    else await refreshDiscoveryCache();
   }
   return pool.map((t) => ({ ...t }));
 }

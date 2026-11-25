@@ -46,6 +46,8 @@ pnpm --filter @xauconnect/backend exec prisma db execute --schema ../prisma/sche
 if ($LASTEXITCODE -ne 0) { throw "Settlement migration failed; services were not stopped" }
 pnpm --filter @xauconnect/backend exec prisma db execute --schema ../prisma/schema.prisma --file ../prisma/migrations/20261124010000_persistent_admin_sessions/migration.sql
 if ($LASTEXITCODE -ne 0) { throw "Admin session migration failed; services were not stopped" }
+pnpm --filter @xauconnect/backend exec prisma db execute --schema ../prisma/schema.prisma --file ../prisma/migrations/20261125154500_recent_indexed_pool_lookup/migration.sql
+if ($LASTEXITCODE -ne 0) { throw "Recent pool index migration failed; services were not stopped" }
 & $nssm stop xauconnect-backend
 try {
   Start-Sleep -Seconds 2

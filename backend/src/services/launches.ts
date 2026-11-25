@@ -8,6 +8,8 @@ import { dexNewLaunches } from "./dexscreener.js";
 import { dbRecentIndexedPools } from "../indexer/db/pools.js";
 import { gtNewLaunches } from "./geckoterminal.js";
 import { lookupToken } from "./market-lookup.js";
+import { singleFlight } from "../lib/single-flight.js";
+import { logger } from "../logger.js";
 import { tokenCacheKey } from "./token-address.js";
 
 const POLL_MS = 2_000;
@@ -64,9 +66,7 @@ function mergeLaunches(ours: MarketToken[], external: MarketToken[], limit = 24)
     seen.add(key);
     merged.push(t);
   }
-  return merged
-    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
-    .slice(0, limit);
+  return merged.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)).slice(0, limit);
 }
 
 /** Full ingest — DB + external APIs merged (hybrid always supplements with Gecko/Dex). */
@@ -88,25 +88,24 @@ export async function getLiveLaunchesFresh(): Promise<MarketToken[]> {
   return mergeLaunches(mergeLaunches(ours, indexed), externalPool, 48).slice(0, 24);
 }
 
-/**
- * Live launch list — serves cached snapshot every 2s; refreshes every 12s.
- */
+const refreshSnapshot = singleFlight(async () => {
+  try {
+    const fresh = await getLiveLaunchesFresh();
+    if (fresh.length > 0) snapshot = fresh;
+  } catch (err) {
+    logger.debug({ err: (err as Error).message }, "launch feed refresh failed");
+  } finally {
+    lastRefreshAt = Date.now();
+  }
+});
+
+/** Serve the last snapshot while a single refresh runs in the background. */
 export async function getLiveLaunches(): Promise<{ launches: MarketToken[]; syncedAt: number }> {
   const now = Date.now();
-
-  if (snapshot.length === 0 || now - lastRefreshAt >= REFRESH_MS) {
-    const fresh = await getLiveLaunchesFresh();
-    if (fresh.length > 0) {
-      snapshot = fresh;
-      lastRefreshAt = now;
-    }
-    lastPollAt = now;
-    return { launches: snapshot.map((t) => ({ ...t })), syncedAt: lastPollAt };
+  if (now - lastRefreshAt >= REFRESH_MS) {
+    if (snapshot.length > 0) void refreshSnapshot();
+    else await refreshSnapshot();
   }
-
-  if (now - lastPollAt >= POLL_MS) {
-    lastPollAt = now;
-  }
-
+  if (now - lastPollAt >= POLL_MS) lastPollAt = now;
   return { launches: snapshot.map((t) => ({ ...t })), syncedAt: lastPollAt || now };
 }

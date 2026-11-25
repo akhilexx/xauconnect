@@ -1,102 +1,131 @@
 import { CHAIN_KEYS, type AdminMetrics } from "@xauconnect/utils";
 import { db } from "../db/client.js";
-import { cached } from "../cache.js";
+import { logger } from "../logger.js";
 import { ApiError } from "../middleware/error.js";
-import { verifiedWhere } from "./settlement/evidence.js";
+import { singleFlight } from "../lib/single-flight.js";
 
-export async function adminMetrics(): Promise<
-  AdminMetrics & { persisted: boolean; hasData: boolean }
-> {
-  if (!db) throw new ApiError(503, "Settlement ledger unavailable", "LEDGER_UNAVAILABLE");
+type Metrics = AdminMetrics & { persisted: boolean; hasData: boolean };
+type SeriesData = Pick<AdminMetrics["volumeSeries"][number], "volumeUsd" | "feesUsd">;
+type MetricsRow = Pick<
+  AdminMetrics,
+  | "totalUsers"
+  | "activeUsers24h"
+  | "tokensLaunched"
+  | "legacyCount"
+  | "pendingCount"
+  | "reviewCount"
+  | "unpricedCount"
+  | "tvlUsd"
+> & {
+  chains: AdminMetrics["chainBreakdown"];
+  daily: Record<string, SeriesData>;
+  monthly: Record<string, SeriesData>;
+};
+
+const dayMs = 86_400_000;
+const freshMs = 15_000;
+let snapshot: { value: Metrics; updatedAt: number } | undefined;
+const dateKey = (date: Date) => date.toISOString().slice(0, 10);
+
+const loadMetrics = singleFlight(async (): Promise<Metrics> => {
   const client = db;
-  return cached("admin:settlement-metrics:v1", 15, async () => {
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    const start = new Date(+today - 29 * 86400000);
-    const firstMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 11, 1));
-    const [
-      chains,
-      daily,
-      monthly,
-      totalUsers,
-      activeUsers24h,
-      tokensLaunched,
-      legacyCount,
-      pendingCount,
-      reviewCount,
-      unpricedCount,
-      tvl,
-    ] = await client.$transaction(
-      async (tx) =>
-        Promise.all([
-          tx.swap.groupBy({
-            by: ["chainKey"],
-            where: verifiedWhere,
-            _sum: { volumeUsd: true, feeUsd: true },
-            _count: { _all: true },
-          }),
-          tx.$queryRaw<Array<{ day: Date; volume: number; fees: number }>>`
-          SELECT date_trunc('day',"createdAt") AS day,SUM("volumeUsd") AS volume,SUM("feeUsd") AS fees
-          FROM "Swap" WHERE "verifiedAt" IS NOT NULL AND "settlementKey" IS NOT NULL AND status='confirmed'
-          AND "createdAt">=${start} GROUP BY 1 ORDER BY 1`,
-          tx.$queryRaw<Array<{ day: Date; volume: number; fees: number }>>`
-            SELECT date_trunc('month',"createdAt") AS day,SUM("volumeUsd") AS volume,SUM("feeUsd") AS fees
-            FROM "Swap" WHERE "verifiedAt" IS NOT NULL AND "settlementKey" IS NOT NULL AND status='confirmed'
-            AND "createdAt">=${firstMonth} GROUP BY 1 ORDER BY 1`,
-          tx.user.count(),
-          tx.user.count({ where: { lastSeenAt: { gte: new Date(Date.now() - 86400000) } } }),
-          tx.launch.count({ where: { status: { in: ["DEPLOYED", "GRADUATED"] } } }),
-          tx.swap.count({ where: { verifiedAt: null } }),
-          tx.swapVerification.count({ where: { state: "pending" } }),
-          tx.swapVerification.count({ where: { state: "review" } }),
-          tx.swap.count({
-            where: { ...verifiedWhere, OR: [{ volumePriced: false }, { feePriced: false }] },
-          }),
-          tx.chainStat.aggregate({ where: { date: { gte: start } }, _max: { tvlUsd: true } }),
-        ]),
-      { isolationLevel: "RepeatableRead" },
+  if (!client)
+    throw new ApiError(503, "Settlement ledger is temporarily unavailable", "LEDGER_UNAVAILABLE");
+  const now = Date.now();
+  const today = new Date(now);
+  today.setUTCHours(0, 0, 0, 0);
+  const start = new Date(+today - 29 * dayMs);
+  const firstMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 11, 1));
+
+  // A single statement provides one consistent PostgreSQL snapshot and doesn't
+  // reserve a connection for an interactive transaction across multiple reads.
+  const [row] = await client.$queryRaw<MetricsRow[]>`
+    WITH verified AS MATERIALIZED (
+      SELECT "chainKey", "createdAt", "volumeUsd", "feeUsd", "volumePriced", "feePriced"
+      FROM "Swap"
+      WHERE status = 'confirmed' AND "verifiedAt" IS NOT NULL AND "settlementKey" IS NOT NULL
+    ), chains AS (
+      SELECT "chainKey", SUM("volumeUsd") AS "volumeUsd", SUM("feeUsd") AS "feesUsd",
+        COUNT(*)::int AS swaps FROM verified GROUP BY "chainKey"
+    ), daily AS (
+      SELECT to_char("createdAt", 'YYYY-MM-DD') AS date,
+        SUM("volumeUsd") AS "volumeUsd", SUM("feeUsd") AS "feesUsd"
+      FROM verified WHERE "createdAt" >= ${start} GROUP BY 1
+    ), monthly AS (
+      SELECT to_char("createdAt", 'YYYY-MM-01') AS date,
+        SUM("volumeUsd") AS "volumeUsd", SUM("feeUsd") AS "feesUsd"
+      FROM verified WHERE "createdAt" >= ${firstMonth} GROUP BY 1
+    )
+    SELECT
+      COALESCE((SELECT jsonb_agg(chains) FROM chains), '[]'::jsonb) AS chains,
+      COALESCE((SELECT jsonb_object_agg(date, jsonb_build_object(
+        'volumeUsd', "volumeUsd", 'feesUsd', "feesUsd")) FROM daily), '{}'::jsonb) AS daily,
+      COALESCE((SELECT jsonb_object_agg(date, jsonb_build_object(
+        'volumeUsd', "volumeUsd", 'feesUsd', "feesUsd")) FROM monthly), '{}'::jsonb) AS monthly,
+      (SELECT COUNT(*)::int FROM "User") AS "totalUsers",
+      (SELECT COUNT(*)::int FROM "User" WHERE "lastSeenAt" >= ${new Date(now - dayMs)}) AS "activeUsers24h",
+      (SELECT COUNT(*)::int FROM "Launch" WHERE status IN ('DEPLOYED', 'GRADUATED')) AS "tokensLaunched",
+      (SELECT COUNT(*)::int FROM "Swap" WHERE "verifiedAt" IS NULL) AS "legacyCount",
+      (SELECT COUNT(*)::int FROM "SwapVerification" WHERE state = 'pending') AS "pendingCount",
+      (SELECT COUNT(*)::int FROM "SwapVerification" WHERE state = 'review') AS "reviewCount",
+      (SELECT COUNT(*)::int FROM verified WHERE NOT "volumePriced" OR NOT "feePriced") AS "unpricedCount",
+      COALESCE((SELECT MAX("tvlUsd") FROM "ChainStat" WHERE date >= ${start}), 0) AS "tvlUsd"
+  `.catch((error: unknown) => {
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    logger.warn({ code }, "admin metrics refresh failed");
+    throw new ApiError(
+      503,
+      "Settlement metrics are temporarily unavailable",
+      "METRICS_UNAVAILABLE",
     );
-    const chainBreakdown = CHAIN_KEYS.map((chainKey) => {
-      const c = chains.find((x) => x.chainKey === chainKey);
-      return {
-        chainKey,
-        volumeUsd: c?._sum.volumeUsd ?? 0,
-        feesUsd: c?._sum.feeUsd ?? 0,
-        swaps: c?._count._all ?? 0,
-      };
-    });
-    const volumeSeries = Array.from({ length: 30 }, (_, i) => {
-      const date = new Date(+start + i * 86400000).toISOString().slice(0, 10);
-      const d = daily.find((row) => row.day.toISOString().slice(0, 10) === date);
-      return { date, volumeUsd: d?.volume ?? 0, feesUsd: d?.fees ?? 0 };
-    });
-    const sum = (f: "swaps" | "volumeUsd" | "feesUsd") =>
-      chainBreakdown.reduce((a, c) => a + c[f], 0);
-    return {
-      totalVolumeUsd: sum("volumeUsd"),
-      feesEarnedUsd: sum("feesUsd"),
-      swapCount: sum("swaps"),
-      chainBreakdown,
-      volumeSeries,
-      monthSeries: Array.from({ length: 12 }, (_, i) => {
-        const date = new Date(
-          Date.UTC(firstMonth.getUTCFullYear(), firstMonth.getUTCMonth() + i, 1),
-        )
-          .toISOString()
-          .slice(0, 10);
-        const d = monthly.find((row) => row.day.toISOString().slice(0, 10) === date);
-        return { date, volumeUsd: d?.volume ?? 0, feesUsd: d?.fees ?? 0 };
-      }),
-      totalUsers,
-      activeUsers24h,
-      tokensLaunched,
-      tvlUsd: tvl._max.tvlUsd ?? 0,
-      legacyCount,
-      pendingCount,
-      reviewCount,
-      unpricedCount,
-      persisted: true,
-      hasData: sum("swaps") > 0,
-    };
   });
+  if (!row)
+    throw new ApiError(
+      503,
+      "Settlement metrics are temporarily unavailable",
+      "METRICS_UNAVAILABLE",
+    );
+
+  const { chains, daily, monthly, ...counts } = row;
+  const chainBreakdown = CHAIN_KEYS.map(
+    (chainKey) =>
+      chains.find((c) => c.chainKey === chainKey) ?? {
+        chainKey,
+        volumeUsd: 0,
+        feesUsd: 0,
+        swaps: 0,
+      },
+  );
+  const sum = (field: "swaps" | "volumeUsd" | "feesUsd") =>
+    chainBreakdown.reduce((total, chain) => total + chain[field], 0);
+  const point = (series: Record<string, SeriesData>, date: string) => ({
+    date,
+    volumeUsd: series[date]?.volumeUsd ?? 0,
+    feesUsd: series[date]?.feesUsd ?? 0,
+  });
+  const swapCount = sum("swaps");
+  const value: Metrics = {
+    ...counts,
+    totalVolumeUsd: sum("volumeUsd"),
+    feesEarnedUsd: sum("feesUsd"),
+    swapCount,
+    chainBreakdown,
+    volumeSeries: Array.from({ length: 30 }, (_, i) =>
+      point(daily, dateKey(new Date(+start + i * dayMs))),
+    ),
+    monthSeries: Array.from({ length: 12 }, (_, i) =>
+      point(
+        monthly,
+        dateKey(new Date(Date.UTC(firstMonth.getUTCFullYear(), firstMonth.getUTCMonth() + i, 1))),
+      ),
+    ),
+    persisted: true,
+    hasData: swapCount > 0,
+  };
+  snapshot = { value, updatedAt: Date.now() };
+  return value;
+});
+
+export async function adminMetrics(): Promise<Metrics> {
+  return snapshot && Date.now() - snapshot.updatedAt < freshMs ? snapshot.value : loadMetrics();
 }

@@ -29,6 +29,7 @@ import { refreshDiscoveryCache } from "./services/discovery-cache.js";
 import { monitorLimitOrders } from "./services/limit-orders.js";
 import { markGraduatedGoldCurves } from "./services/meteora-dbc.js";
 
+import { backgroundTask } from "./lib/background-task.js";
 import { checkSettlements } from "./services/settlement/ledger.js";
 
 async function main() {
@@ -99,12 +100,14 @@ async function main() {
 
   server.listen(env.PORT, process.env.BIND_ADDRESS || "127.0.0.1", () => {
     logger.info(`XAUConnect backend listening on :${env.PORT}`);
-    void checkSettlements();
-    setInterval(() => void checkSettlements(), 12_000).unref();
-    void refreshDiscoveryCache();
-    setInterval(() => void refreshDiscoveryCache(), 30_000);
-    setInterval(() => void monitorLimitOrders(), 15_000);
-    setInterval(() => void markGraduatedGoldCurves(), 30_000);
+    const settlements = backgroundTask("settlement-verification", checkSettlements);
+    const discovery = backgroundTask("discovery-refresh", refreshDiscoveryCache);
+    settlements();
+    discovery();
+    setInterval(settlements, 12_000).unref();
+    setInterval(discovery, 30_000).unref();
+    setInterval(backgroundTask("limit-orders", monitorLimitOrders), 15_000).unref();
+    setInterval(backgroundTask("gold-curve-graduations", markGraduatedGoldCurves), 30_000).unref();
   });
 
   const shutdown = async (signal: string) => {

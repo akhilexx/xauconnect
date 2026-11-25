@@ -24,7 +24,7 @@ import { getChainByKey } from "@xauconnect/utils";
 import { GlassCard, StatCard } from "@xauconnect/ui";
 import { api } from "@/lib/api";
 import { useAdminReady } from "@/lib/session";
-import { AdminQueryShell } from "./admin-query-shell";
+import { AdminQueryShell, isTransientAdminError } from "./admin-query-shell";
 
 const money = (n: number) =>
   n.toLocaleString("en-US", {
@@ -48,10 +48,11 @@ export function MetricsOverview() {
     enabled: ready,
     queryFn: () => api.adminMetrics(),
     refetchInterval: 30_000,
-    retry: 1,
+    retry: (failures, error) => failures < 1 && isTransientAdminError(error),
+    refetchOnWindowFocus: true,
   });
   return (
-    <AdminQueryShell query={query}>
+    <AdminQueryShell query={query} keepLastData>
       {(m) => {
         const points = days === 365 ? m.monthSeries : m.volumeSeries.slice(-days),
           sum = points.reduce((a, d) => a + d[series], 0);

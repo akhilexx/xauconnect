@@ -11,6 +11,7 @@ import {
   type WsServerMessage,
 } from "@xauconnect/utils";
 import { corsOrigins } from "../config.js";
+import { backgroundTask } from "../lib/background-task.js";
 import { logger } from "../logger.js";
 import { db } from "../db/client.js";
 import { getLiveLaunches } from "../services/launches.js";
@@ -29,6 +30,11 @@ const clients = new Set<ClientState>();
 let timers: NodeJS.Timeout[] = [];
 
 let recentLaunches: MarketToken[] = [];
+
+const hasSubscribers = (channel: Channel) =>
+  [...clients].some(
+    (client) => client.channels.has(channel) && client.socket.readyState === WebSocket.OPEN,
+  );
 
 function launchKey(t: MarketToken): string {
   return tokenCacheKey(t.chainKey, t.address);
@@ -91,7 +97,8 @@ export function attachWebSocket(server: Server): void {
     path: "/ws",
     maxPayload: 4096,
     perMessageDeflate: false,
-    verifyClient: ({ origin }: {origin: string}) => clients.size < 2000 && (!origin || corsOrigins.includes(origin)),
+    verifyClient: ({ origin }: { origin: string }) =>
+      clients.size < 2000 && (!origin || corsOrigins.includes(origin)),
   });
 
   wss.on("connection", (socket) => {
@@ -147,66 +154,75 @@ export function attachWebSocket(server: Server): void {
   );
 
   timers.push(
-    setInterval(async () => {
-      try {
-        const prices = await tickerPrices();
-        if (prices.length > 0) broadcast("prices", prices);
-      } catch (err) {
-        logger.debug({ err: (err as Error).message }, "price tick failed");
-      }
-    }, 12_000),
-  );
-
-  let lastBroadcastSettlement:string|undefined;
-  timers.push(
-    setInterval(async () => {
-      if (!db) return;
-      try {
-        const swap = await db.swap.findFirst({
-          where: { verifiedAt: { not: null }, settlementKey: { not: null }, status: "confirmed" },
-          orderBy: [{verifiedAt:"desc"},{id:"desc"}],
-          select: {
-            id:true,
-            chainKey: true,
-            tokenIn: true,
-            volumeUsd: true,
-            txHash: true,
-            createdAt: true,
-          },
-        });
-        if (swap && swap.id!==lastBroadcastSettlement) {
-          lastBroadcastSettlement=swap.id;
-          broadcast("swaps", {
-            chainKey: swap.chainKey,
-            symbol: swap.tokenIn.slice(0, 6),
-            side: "swap",
-            amountUsd: Math.round(swap.volumeUsd),
-            txHash: swap.txHash,
-            timestamp: swap.createdAt.getTime(),
-          });
+    setInterval(
+      backgroundTask("websocket-prices", async () => {
+        if (!hasSubscribers("prices")) return;
+        try {
+          const prices = await tickerPrices();
+          if (prices.length > 0) broadcast("prices", prices);
+        } catch (err) {
+          logger.debug({ err: (err as Error).message }, "price tick failed");
         }
-      } catch {
-        /* next tick */
-      }
-    }, 2_500),
+      }),
+      12_000,
+    ),
+  );
+
+  let lastBroadcastSettlement: string | undefined;
+  timers.push(
+    setInterval(
+      backgroundTask("websocket-swaps", async () => {
+        if (!db || !hasSubscribers("swaps")) return;
+        try {
+          const swap = await db.swap.findFirst({
+            where: { verifiedAt: { not: null }, settlementKey: { not: null }, status: "confirmed" },
+            orderBy: [{ verifiedAt: "desc" }, { id: "desc" }],
+            select: {
+              id: true,
+              chainKey: true,
+              tokenIn: true,
+              volumeUsd: true,
+              txHash: true,
+              createdAt: true,
+            },
+          });
+          if (swap && swap.id !== lastBroadcastSettlement) {
+            lastBroadcastSettlement = swap.id;
+            broadcast("swaps", {
+              chainKey: swap.chainKey,
+              symbol: swap.tokenIn.slice(0, 6),
+              side: "swap",
+              amountUsd: Math.round(swap.volumeUsd),
+              txHash: swap.txHash,
+              timestamp: swap.createdAt.getTime(),
+            });
+          }
+        } catch {
+          /* next tick */
+        }
+      }),
+      2_500,
+    ),
   );
 
   timers.push(
-    setInterval(async () => {
-      try {
-        const tokens = await discovery("trending");
-        if (tokens.length > 0) broadcast("trending", tokens);
-      } catch {
-        /* next tick */
-      }
-    }, 10_000),
+    setInterval(
+      backgroundTask("websocket-trending", async () => {
+        if (!hasSubscribers("trending")) return;
+        try {
+          const tokens = await discovery("trending");
+          if (tokens.length > 0) broadcast("trending", tokens);
+        } catch {
+          /* next tick */
+        }
+      }),
+      10_000,
+    ),
   );
 
-  timers.push(setInterval(() => void refreshLaunchBuffer(), 2_000));
-
-  void (async () => {
-    await refreshLaunchBuffer();
-  })();
+  const refreshLaunches = backgroundTask("websocket-launches", refreshLaunchBuffer);
+  timers.push(setInterval(refreshLaunches, 2_000));
+  refreshLaunches();
 
   logger.info("websocket hub attached at /ws");
 }
