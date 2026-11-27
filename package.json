@@ -19,6 +19,7 @@
     "db:generate": "pnpm --filter @xauconnect/backend db:generate",
     "db:migrate": "pnpm --filter @xauconnect/backend db:migrate",
     "seo:generate": "tsx scripts/seo/generate-all.ts",
+    "seo:articles": "tsx scripts/seo/generate-all.ts --reuse-catalog",
     "seo:enrich": "tsx scripts/seo/enrich-all-pages.ts",
     "seo:validate": "tsx scripts/seo/validate-seo-content.ts",
     "seo:build": "./scripts/seo-build.sh --fast",
@@ -32,6 +33,8 @@
   },
   "devDependencies": {
     "@solana/web3.js": "^1.98.0",
+    "@xauconnect/seo": "workspace:*",
+    "@xauconnect/utils": "workspace:*",
     "@scure/bip32": "^1.7.0",
     "@scure/bip39": "^1.6.0",
     "bs58": "^6.0.0",

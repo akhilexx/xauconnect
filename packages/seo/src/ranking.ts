@@ -1,25 +1,7 @@
-/**
- * On-page ranking placement from Whitespark Local Update E49 (Edward Sturm).
- *
- * The durable methods in that episode, applied here:
- * - The target query sits in the title, the URL, the H1, and the opening sentence.
- * - A 20–30 word opening can be copied into an AI retrieval check.
- * - Other indexed pages that already mention the query link that mention to the target.
- * - Page URLs win over in-page anchors. Anchors are only for a buried section.
- * - One FAQ answers the broader question models fan out to.
- *
- * Not applied, because the same episode said they are not worth doing:
- * indexers, NotebookLM / chat-share parasite pages, exact-match domain nets,
- * and invented press-release events.
- *
- * Operator notes: docs/SEO_RANKING_PLAYBOOK.md
- */
-import type { SeoFaq, SeoPageConfig } from "./types.js";
-import { hashSeed } from "./content-blocks.js";
+/** Add contextual links to relevant pages and describe the opening that readers actually see. */
+import type { SeoPageConfig } from "./types.js";
 
 export interface RankingStats {
-  openingsAdded: number;
-  fanOutsAdded: number;
   contextualLinks: number;
   targets: number;
 }
@@ -77,13 +59,6 @@ const SOURCE_RANK: Record<string, number> = {
 const MAX_OUTBOUND = 3;
 const MAX_INBOUND = 24;
 
-const TAILS = [
-  "Compare the live quote, the fee, and the minimum you receive, then sign from your own wallet.",
-  "Read the route and the minimum you will receive before your wallet asks you to approve.",
-  "Check the contract, the network, and the minimum received before you confirm the trade.",
-  "Start with a small test trade, match the receipt to the quote, then increase size only after that.",
-] as const;
-
 export function headingAnchor(text: string): string {
   return text
     .toLowerCase()
@@ -115,136 +90,6 @@ export function normalizePhrase(text: string): string {
 
 export function primaryQuery(page: SeoPageConfig): string {
   return page.h1.replace(/\s+[—–-]\s+overview$/i, "").trim();
-}
-
-export function firstSentence(text: string): string {
-  const plain = normalizeSpace(text);
-  const match = plain.match(/^[\s\S]*?[.!?](?=\s+[A-Z0-9]|\s*$)/);
-  return (match?.[0] ?? plain).trim();
-}
-
-export function openingHasQuery(intro: string, query: string): boolean {
-  const sentence = normalizePhrase(firstSentence(stripMd(intro.split(/\n\n+/)[0] ?? intro)));
-  const needle = normalizePhrase(query);
-  return needle.length > 0 && sentence.includes(needle);
-}
-
-export function wordCount(text: string): number {
-  return text.split(/\s+/).filter(Boolean).length;
-}
-
-/** A single opening sentence of 20–30 words that begins with the query. */
-export function buildCitationSentence(query: string, seedKey: string): string {
-  const q = query.replace(/\s+/g, " ").trim().replace(/[.?!]+$/, "");
-  const qWords = q.split(" ").filter(Boolean);
-  if (qWords.length >= 20 && qWords.length <= 28) {
-    return /[.!?]$/.test(q) ? q : `${q}.`;
-  }
-  if (qWords.length > 28) {
-    return `${qWords.slice(0, 28).join(" ")}.`;
-  }
-  const tail = TAILS[hashSeed(seedKey) % TAILS.length]!;
-  const room = 28 - qWords.length;
-  let tailWords = tail.replace(/[.?!]+$/, "").split(/\s+/).filter(Boolean);
-  if (tailWords.length > room) tailWords = tailWords.slice(0, Math.max(room, 0));
-  const tailText = tailWords.join(" ");
-  const tailClause = tailText ? `${tailText.charAt(0).toLowerCase()}${tailText.slice(1)}` : "";
-  let sentence = tailClause ? `${q}: ${tailClause}` : q;
-  if (!/[.!?]$/.test(sentence)) sentence += ".";
-  const filler = ["Review", "fees", "before", "signing", "on", "XAUConnect"];
-  let i = 0;
-  while (wordCount(sentence) < 20 && i < filler.length) {
-    sentence = `${sentence.replace(/\.$/, "")} ${filler[i]}.`;
-    i++;
-  }
-  const words = sentence.split(/\s+/);
-  if (words.length > 30) sentence = `${words.slice(0, 28).join(" ")}.`;
-  return sentence;
-}
-
-export function deriveCitationSnippet(intro: string): string {
-  const first = intro.split(/\n\n+/)[0] ?? intro;
-  const plain = stripMd(first);
-  const words = plain.split(" ").filter(Boolean);
-  if (words.length >= 20 && words.length <= 30) return plain;
-  if (words.length > 30) {
-    let end = Math.min(28, words.length);
-    for (let i = Math.min(28, words.length); i >= 20; i--) {
-      if (/[.!?]$/.test(words[i - 1] ?? "")) {
-        end = i;
-        break;
-      }
-    }
-    return words.slice(0, end).join(" ");
-  }
-  const all = stripMd(intro).split(" ").filter(Boolean);
-  if (all.length <= 30) return all.join(" ");
-  return all.slice(0, 24).join(" ");
-}
-
-export function bestWayQuestion(query: string): string {
-  const q = query.replace(/\s+/g, " ").trim().replace(/[.?!]+$/, "");
-  if (/^how to\s+/i.test(q)) {
-    return `What is the best way to ${q.replace(/^how to\s+/i, "")}?`;
-  }
-  if (
-    /^(swap|buy|sell|trade|bridge|launch|discover|connect|verify|avoid|calculate|revoke)\b/i.test(
-      q,
-    )
-  ) {
-    return `What is the best way to ${q.charAt(0).toLowerCase()}${q.slice(1)}?`;
-  }
-  if (/\bto\b/i.test(q)) return `What is the best way to swap ${q}?`;
-  return `What is the best way to trade ${q.charAt(0).toLowerCase()}${q.slice(1)}?`;
-}
-
-function fanOutAnswer(page: SeoPageConfig): string {
-  const parts = page.intro.split(/\n\n+/).map((part) => stripMd(part)).filter(Boolean);
-  const source = parts[1] ?? parts[0] ?? "";
-  const sentences = source.match(/[^.!?]+[.!?]+/g) ?? [source];
-  let answer = normalizeSpace(sentences.slice(0, 2).join(" "));
-  const words = answer.split(/\s+/).filter(Boolean);
-  if (words.length > 48) answer = `${words.slice(0, 46).join(" ")}.`;
-  if (wordCount(answer) < 12) {
-    answer = normalizeSpace(
-      `${answer} XAUConnect compares live routes and lets your own wallet sign.`,
-    );
-  }
-  if (!/[.!?]$/.test(answer)) answer += ".";
-  return answer;
-}
-
-function ensureOpening(page: SeoPageConfig): boolean {
-  const query = primaryQuery(page);
-  page.primaryQuery = query;
-  if (!page.keywords.some((k) => k.toLowerCase() === query.toLowerCase())) {
-    page.keywords = [query, ...page.keywords].slice(0, 12);
-  }
-  if (!openingHasQuery(page.intro, query)) {
-    const parts = page.intro.split(/\n\n+/);
-    const first = (parts[0] ?? "").trim();
-    parts[0] = `${query}. ${first}`;
-    page.intro = parts.join("\n\n");
-    page.citationSnippet = deriveCitationSnippet(page.intro);
-    return true;
-  }
-  page.citationSnippet = deriveCitationSnippet(page.intro);
-  return false;
-}
-
-function ensureFanOut(page: SeoPageConfig): boolean {
-  const query = page.primaryQuery ?? primaryQuery(page);
-  const question = bestWayQuestion(query);
-  if (question.length > 160) return false;
-  const exists = page.faqs.some(
-    (faq) => faq.question.toLowerCase() === question.toLowerCase() || /best way to/i.test(faq.question),
-  );
-  if (exists) return false;
-  const answer = fanOutAnswer(page);
-  if (wordCount(answer) < 8) return false;
-  const faq: SeoFaq = { question, answer };
-  page.faqs = [faq, ...page.faqs].slice(0, 8);
-  return true;
 }
 
 function needlesFor(query: string): string[] {
@@ -381,7 +226,7 @@ function applyTopicalLinks(pages: SeoPageConfig[], targets: Target[]): number {
   const candidates: Candidate[] = [];
   for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
     const page = pages[pageIndex]!;
-    if (page.noindex) continue;
+    if (page.noindex || page.editorial) continue;
     const rank = SOURCE_RANK[page.kind] ?? 6;
     for (const slot of slotsFor(page, pageIndex)) {
       const hay = slot.text.toLowerCase();
@@ -456,43 +301,15 @@ function applyTopicalLinks(pages: SeoPageConfig[], targets: Target[]): number {
 }
 
 export function applyRankingSystem(pages: SeoPageConfig[]): RankingStats {
-  let openingsAdded = 0;
-  let fanOutsAdded = 0;
   for (const page of pages) {
-    if (page.noindex) continue;
-    if (ensureOpening(page)) openingsAdded++;
-    if (ensureFanOut(page)) fanOutsAdded++;
+    if (!page.noindex) page.citationSnippet = stripMd(page.intro.split("\n\n")[0] ?? page.intro);
   }
   const targets = collectTargets(pages);
   const contextualLinks = applyTopicalLinks(pages, targets);
-  return { openingsAdded, fanOutsAdded, contextualLinks, targets: targets.length };
+  return { contextualLinks, targets: targets.length };
 }
 
 export function rankingSelfCheck(): void {
-  const samples = [
-    ["How to set slippage tolerance", "/learn/guides/how-to-set-slippage-tolerance"],
-    ["Swap Ether (ETH) on Ethereum", "/swap/ethereum/eth"],
-    ["ETH to USDC on Ethereum", "/pairs/ethereum/eth-usdc"],
-    ["Trade on Ethereum with XAUConnect", "/chains/ethereum"],
-  ] as const;
-  for (const [query, path] of samples) {
-    const sentence = buildCitationSentence(query, path);
-    const count = wordCount(sentence);
-    if (count < 20 || count > 30) {
-      throw new Error(`citation length ${count} for "${query}": ${sentence}`);
-    }
-    if (!normalizePhrase(sentence).includes(normalizePhrase(query))) {
-      throw new Error(`citation dropped query "${query}": ${sentence}`);
-    }
-  }
-
-  const howTo = bestWayQuestion("How to set slippage tolerance");
-  if (howTo !== "What is the best way to set slippage tolerance?") {
-    throw new Error(howTo);
-  }
-  const pair = bestWayQuestion("ETH to USDC on Ethereum");
-  if (!pair.startsWith("What is the best way to swap ETH")) throw new Error(pair);
-
   const guide: SeoPageConfig = {
     id: "guide",
     kind: "guide",
@@ -534,10 +351,6 @@ export function rankingSelfCheck(): void {
     throw new Error(`topical link missing: ${supporter.sections[0]?.body}`);
   }
   if (stats.contextualLinks < 1) throw new Error("expected a contextual link");
-  if (!openingHasQuery(guide.intro, "How to set slippage tolerance")) {
-    throw new Error("guide opening lost its query");
-  }
-
   const bare: SeoPageConfig = {
     ...guide,
     id: "bare",
@@ -550,7 +363,7 @@ export function rankingSelfCheck(): void {
     faqs: [{ question: "Does XAUConnect endorse launches?", answer: "No. Listing is tooling." }],
   };
   applyRankingSystem([bare]);
-  if (!bare.intro.startsWith("How to launch a token on XAUConnect. XAUConnect")) {
+  if (!bare.intro.startsWith("XAUConnect’s launchpad") || bare.faqs.length !== 1) {
     throw new Error(`opening was rewritten: ${bare.intro.slice(0, 120)}`);
   }
   if (!bare.citationSnippet?.includes("launchpad is for teams")) {

@@ -29,6 +29,12 @@ importers:
         specifier: 6.19.3
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
     devDependencies:
+      '@xauconnect/seo':
+        specifier: workspace:*
+        version: link:packages/seo
+      '@xauconnect/utils':
+        specifier: workspace:*
+        version: link:packages/utils
       '@scure/bip32':
         specifier: ^1.7.0
         version: 1.7.0

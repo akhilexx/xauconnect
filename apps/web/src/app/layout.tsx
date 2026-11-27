@@ -1,3 +1,8 @@
+import { XauToaster } from "@xauconnect/ui";
+import { Providers } from "@/components/providers";
+import { AppFlowBackground } from "@/components/app-flow-background";
+import { SiteShell } from "@/components/site-shell";
+
 import type { Metadata, Viewport } from "next";
 import { Inter, Sora } from "next/font/google";
 import { BRAND_DESCRIPTION, BRAND_LOGO, BRAND_NAME, BRAND_TAGLINE } from "@xauconnect/utils";
@@ -88,7 +93,7 @@ export const viewport: Viewport = {
   interactiveWidget: "resizes-content",
 };
 
-/** Root shell only — route groups supply (site) or (seo) chrome. */
+/** A single persistent shell; server-rendered article content passes through as children. */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${sora.variable}`}>
@@ -98,7 +103,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="font-sans antialiased">
         <GoogleAnalytics />
-        {children}
+        <Providers>
+          <AppFlowBackground />
+          <SiteShell>{children}</SiteShell>
+          <XauToaster />
+        </Providers>
       </body>
     </html>
   );

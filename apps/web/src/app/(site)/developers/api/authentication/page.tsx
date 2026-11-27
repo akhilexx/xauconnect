@@ -1,4 +1,11 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
+
+export const metadata = sitePageMetadata({
+  title: "Authentication & rate limits",
+  description: "Read the public API authentication model, rate limits and how to handle rate-limit responses.",
+  path: "/developers/api/authentication",
+});
 
 export default function ApiAuthPage() {
   return (

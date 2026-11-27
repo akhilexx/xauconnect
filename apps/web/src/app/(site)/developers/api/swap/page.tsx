@@ -1,5 +1,12 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import Link from "next/link";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
+
+export const metadata = sitePageMetadata({
+  title: "Same-chain swap flow",
+  description: "Quote, build, sign, and record a swap on a single chain. Fully non-custodial — the API only returns unsigned transactions.",
+  path: "/developers/api/swap",
+});
 
 export default function ApiSwapPage() {
   return (

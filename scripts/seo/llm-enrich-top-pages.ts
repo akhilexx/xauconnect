@@ -90,7 +90,7 @@ export async function llmEnrichTopPages(): Promise<void> {
 
   for (const id of priorities) {
     const page = byId.get(id);
-    if (!page) continue;
+    if (!page || page.kind === "guide" || page.kind === "learn") continue;
     const patch = await enrichWithOpenAI(page);
     if (!patch) continue;
     if (patch.intro) page.intro = patch.intro;

@@ -1,4 +1,11 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
+
+export const metadata = sitePageMetadata({
+  title: "Cross-chain swaps",
+  description: "Bridge and swap across chains in one workflow. Quote, build the origin transaction, sign, then poll until the destination settles.",
+  path: "/developers/api/cross-chain",
+});
 
 export default function ApiCrossChainPage() {
   return (

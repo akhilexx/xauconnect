@@ -1,4 +1,11 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
+
+export const metadata = sitePageMetadata({
+  title: "Solana execution",
+  description: "How Solana swaps differ from EVM: no approvals, a base64 VersionedTransaction to sign, and server-side broadcast.",
+  path: "/developers/api/solana",
+});
 
 export default function ApiSolanaPage() {
   return (

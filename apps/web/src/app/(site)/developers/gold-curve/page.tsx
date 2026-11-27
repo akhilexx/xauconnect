@@ -1,5 +1,12 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import Link from "next/link";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
+
+export const metadata = sitePageMetadata({
+  title: "Gold Curve",
+  description: "Launch a Solana token on a published Meteora Dynamic Bonding Curve. The API returns an unsigned transaction. The creator wallet signs it.",
+  path: "/developers/gold-curve",
+});
 
 export default function GoldCurveDocsPage() {
   return (

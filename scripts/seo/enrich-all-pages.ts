@@ -18,7 +18,7 @@ export function enrichAllPagesLocal(): void {
   log("enrich", `${enriched}/${manifest.pageCount} pages enriched with article content`);
   log(
     "enrich",
-    `ranking openings=${ranking.openingsAdded} fanout=${ranking.fanOutsAdded} contextualLinks=${ranking.contextualLinks} targets=${ranking.targets}`,
+    `contextualLinks=${ranking.contextualLinks} targets=${ranking.targets}`,
   );
 }
 

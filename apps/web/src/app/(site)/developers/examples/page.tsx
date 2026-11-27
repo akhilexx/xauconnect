@@ -1,4 +1,11 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
+
+export const metadata = sitePageMetadata({
+  title: "Code examples",
+  description: "Use the TypeScript and HTTP examples to request quotes and build wallet-signed transactions.",
+  path: "/developers/examples",
+});
 
 export default function ExamplesPage() {
   return (

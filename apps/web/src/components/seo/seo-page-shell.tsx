@@ -9,6 +9,7 @@ import {
   type SeoPageConfig,
 } from "@xauconnect/seo";
 import { SeoJsonLd } from "./seo-json-ld";
+import { ChainRouteDirectory } from "./chain-route-directory";
 import { SeoExploreNext } from "./seo-explore-next";
 import { seoSwapHref } from "@/lib/seo/swap-href";
 
@@ -74,8 +75,8 @@ function ArticleBody({ page }: { page: SeoPageConfig }) {
           <h2 className="font-display text-xl font-bold tracking-tight text-ink sm:text-2xl">
             {section.heading}
           </h2>
-          <div className="mt-3 whitespace-pre-line text-[1.0625rem] leading-[1.75] text-ink-soft">
-            {renderMarkdownish(section.body)}
+          <div className="mt-3 space-y-3 whitespace-pre-line text-[1.0625rem] leading-[1.75] text-ink-soft">
+            {section.body.split(/\n\n+/).map((paragraph, i) => <p key={i}>{renderMarkdownish(paragraph)}</p>)}
           </div>
         </section>
       ))}
@@ -243,6 +244,7 @@ function TableOfContents({ page }: { page: SeoPageConfig }) {
     id: headingAnchor(s.heading),
     label: s.heading,
   }));
+  if (page.editorial) items.push({ id: "article-sources", label: "Sources" });
   if (page.faqs.length) items.push({ id: "faq", label: FAQ_HEADING });
   items.push({ id: "trade", label: `Trade on ${BRAND_NAME}` });
   if (items.length < 2) return null;
@@ -305,14 +307,13 @@ export function SeoPageShell({ page }: { page: SeoPageConfig }) {
             </h1>
             {page.kind === "learn" || page.kind === "guide" ? (
               <p className="text-sm text-ink-muted">
-                Written by{" "}
+                Published by{" "}
                 <Link href="/about" className="font-semibold text-gold-dark hover:underline">
                   XAUConnect Labs
                 </Link>
-                {" · "}
-                Reviewed against live product behavior
-                {" · "}
-                Updated 16 October 2026
+                {page.editorial && <> · AI-assisted article · Updated <time dateTime={page.editorial.modified}>
+                  {new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeZone: "UTC" }).format(new Date(page.editorial.modified))}
+                </time></>}
               </p>
             ) : null}
             <div className="space-y-3 text-[1.0625rem] leading-[1.75] text-ink-soft">
@@ -329,8 +330,8 @@ export function SeoPageShell({ page }: { page: SeoPageConfig }) {
               <img
                 src={page.figure.src}
                 alt={page.figure.alt}
-                width={1200}
-                height={675}
+                width={1280}
+                height={720}
                 className="h-auto w-full"
               />
               <figcaption className="mt-2 text-sm leading-relaxed text-ink-muted">{page.figure.caption}</figcaption>
@@ -341,12 +342,23 @@ export function SeoPageShell({ page }: { page: SeoPageConfig }) {
 
           <ArticleBody page={page} />
 
+          {page.editorial && (
+            <section aria-labelledby="article-sources">
+              <h2 id="article-sources" className="font-display text-xl font-bold text-ink">Sources and reference documents</h2>
+              <ul className="mt-3 space-y-2 text-sm">
+                {page.editorial.sources.map(source => (
+                  <li key={source.href}><Link href={source.href} className="font-semibold text-gold-dark underline underline-offset-2">{source.label}</Link></li>
+                ))}
+              </ul>
+            </section>
+          )}
           <RiskDisclosureSection />
 
-          <FaqSection page={page} />
+          {page.faqs.length > 0 && <FaqSection page={page} />}
 
           <SwapSection page={page} />
 
+          {page.kind === "chain" && page.chainKey && <ChainRouteDirectory from={page.chainKey} />}
           <SeoExploreNext page={page} />
 
           <footer className="flex flex-col gap-2 border-t border-white/60 pt-6 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:pt-8">

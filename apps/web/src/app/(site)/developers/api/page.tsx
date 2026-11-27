@@ -1,5 +1,12 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
 import { RedocEmbed } from "@/components/developers/redoc-embed";
+
+export const metadata = sitePageMetadata({
+  title: "API reference",
+  description: "Interactive OpenAPI documentation.",
+  path: "/developers/api",
+});
 
 export default function ApiReferencePage() {
   return (

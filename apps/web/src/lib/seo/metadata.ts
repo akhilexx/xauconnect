@@ -3,6 +3,7 @@ import { BRAND_DESCRIPTION, BRAND_LOGO, BRAND_NAME, getChainLogoUrl } from "@xau
 import { SITE_URL, type SeoPageConfig } from "@xauconnect/seo";
 
 function ogImageForPage(page: SeoPageConfig): string {
+  if (page.figure) return page.figure.src;
   if (page.chainKey) {
     return getChainLogoUrl(page.chainKey) ?? BRAND_LOGO.og;
   }
@@ -20,14 +21,16 @@ export function seoMetadata(page: SeoPageConfig): Metadata {
     keywords: page.keywords,
     authors: [{ name: `${BRAND_NAME} Labs`, url: `${SITE_URL}/about` }],
     alternates: { canonical },
-    robots: page.noindex ? { index: false, follow: false } : { index: true, follow: true },
+    robots: page.noindex ? { index: false, follow: false } : { index: true, follow: true, "max-image-preview": "large" },
     openGraph: {
       title: page.title,
       description: page.description,
       url: canonical,
       type: isArticle ? "article" : "website",
       siteName: BRAND_NAME,
-      images: [{ url: ogImage, width: 512, height: 512, alt: page.h1 }],
+      images: [{ url: ogImage,
+        ...(page.figure ? { width: 1280, height: 720 } : ogImage === BRAND_LOGO.og ? { width: BRAND_LOGO.ogWidth, height: BRAND_LOGO.ogHeight } : {}),
+        alt: page.figure?.alt ?? page.h1 }],
     },
     twitter: {
       card: "summary_large_image",
@@ -88,8 +91,6 @@ export function faqJsonLd(page: SeoPageConfig): object {
   };
 }
 
-const ARTICLE_PUBLISHED = "2026-01-15";
-const ARTICLE_MODIFIED = "2026-10-16";
 
 export function articleJsonLd(page: SeoPageConfig): object {
   return {
@@ -109,8 +110,10 @@ export function articleJsonLd(page: SeoPageConfig): object {
       url: SITE_URL,
       logo: { "@type": "ImageObject", url: `${SITE_URL}${BRAND_LOGO.icon512}` },
     },
-    datePublished: ARTICLE_PUBLISHED,
-    dateModified: ARTICLE_MODIFIED,
+    datePublished: page.editorial?.published,
+    dateModified: page.editorial?.modified,
+    image: page.figure ? `${SITE_URL}${page.figure.src}` : undefined,
+    citation: page.editorial?.sources.map(s => new URL(s.href, SITE_URL).href),
     mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_URL}${page.path}` },
     articleSection: page.eyebrow?.split("·")[0]?.trim() ?? "DeFi",
     wordCount: page.intro.split(/\s+/).length + page.sections.reduce((n, s) => n + s.body.split(/\s+/).length, 0),

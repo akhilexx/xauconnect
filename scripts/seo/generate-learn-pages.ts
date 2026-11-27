@@ -6,6 +6,7 @@
  * content in `packages/seo/src/learn-content*.ts`. Per-chain swap and token-
  * creation guides are unique prose, not name-substituted templates.
  */
+import { EDITORIAL_ARTICLES } from "../../packages/seo/src/editorial-library.js";
 import { BRAND_NAME } from "@xauconnect/utils";
 import { learnSlug, saveLearnEntries, type LearnEntry } from "@xauconnect/seo";
 import { log } from "./lib/env.js";
@@ -817,7 +818,8 @@ export function generateLearnEntries(): LearnEntry[] {
   const entries: LearnEntry[] = [];
   const seen = new Set<string>();
 
-  for (const seed of [...GUIDES, ...CONCEPTS]) {
+  const edited: SeedEntry[] = EDITORIAL_ARTICLES.map(a => ({ ...a, topic: a.h1 }));
+  for (const seed of [...edited, ...GUIDES, ...CONCEPTS]) {
     const slug = seed.slug ?? learnSlug(seed.h1.replace(/XAUConnect/gi, "xauconnect"));
     if (seen.has(slug)) continue;
     seen.add(slug);

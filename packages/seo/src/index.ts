@@ -1,11 +1,7 @@
 export * from "./enrich.js";
 export {
   applyRankingSystem,
-  bestWayQuestion,
-  buildCitationSentence,
-  deriveCitationSnippet,
   headingAnchor,
-  openingHasQuery,
   primaryQuery,
   rankingSelfCheck,
   stripMd,

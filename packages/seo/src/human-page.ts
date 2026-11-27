@@ -26,55 +26,13 @@ function clean(text: string): string {
     .trim();
 }
 
-function words(text: string): string[] {
-  return text.split(/\s+/).filter(Boolean);
-}
-
-/** First paragraph must be 20–30 words so the citation check can lift it. */
 function open(query: string, rest: string): string {
-  const q = query.replace(/[.?!]+$/, "").trim();
-  let sentence = `${q}. ${rest}`.replace(/\s+/g, " ").trim();
-  if (!/[.!?]$/.test(sentence)) sentence += ".";
-  const filler = ["Check the fee line on the quote before you sign."];
-  if (words(sentence).length < 20) sentence = `${sentence.replace(/\.$/, "")} ${filler[0]}`;
-  const w = words(sentence);
-  if (w.length > 30) sentence = `${w.slice(0, 28).join(" ")}.`;
-  return sentence;
+  return `${query.replace(/[.?!]+$/, "").trim()}. ${rest.trim()}`;
 }
 
-/** Spoken description in the 150 to 160 characters Google shows. Closers are full sentences. */
-function clampMeta(text: string): string {
-  const sentences = text.replace(/\s+/g, " ").trim().split(/(?<=\.)\s+/);
-  let s = "";
-  for (const part of sentences) {
-    const next = s ? `${s} ${part}` : part;
-    if (next.length > 160) break;
-    s = next;
-  }
-  if (!s) s = (sentences[0] ?? text).slice(0, 160).trim();
-  for (const closer of [
-    " The quote shows the fee and the minimum before you sign.",
-    " You keep the keys.",
-    " Sign now.",
-  ]) {
-    if (s.length >= 150) break;
-    if (s.length + closer.length <= 160) s += closer;
-  }
-  return s.trim();
-}
-
-/** Keep a spoken description. Do not append a fragment when the sentence already fits. */
+// Keep complete sentences. Search engines choose their own snippet lengths.
 function fitDescription(text: string): string {
-  const s = text.replace(/\s+/g, " ").trim();
-  if (s.length >= 150 && s.length <= 160) return s;
-  if (s.length > 160) {
-    const cut = s.slice(0, 157);
-    const space = cut.lastIndexOf(" ");
-    const base = (space > 120 ? cut.slice(0, space) : cut).replace(/[,:;]+$/, "");
-    const withStop = /[.!?]$/.test(base) ? base : `${base}.`;
-    return withStop.length <= 160 ? withStop : withStop.slice(0, 160).trim();
-  }
-  return clampMeta(s);
+  return text.replace(/\s+/g, " ").trim();
 }
 
 function bridgeFigure(page: SeoPageConfig): { src: string; alt: string; caption: string } {
@@ -351,7 +309,7 @@ export function applyHumanPage(page: SeoPageConfig): void {
     page.intro = clean(authored.intro);
     page.sections = authored.sections.map((s) => ({ heading: clean(s.heading), body: clean(s.body) }));
     page.faqs = authored.faqs.map((f) => ({ question: clean(f.question), answer: clean(f.answer) }));
-    page.description = clampMeta(clean(authored.description));
+    page.description = fitDescription(clean(authored.description));
     page.figure = authored.figure;
     return;
   }
@@ -372,7 +330,7 @@ export function applyHumanPage(page: SeoPageConfig): void {
       page.intro = clean(built.intro);
       page.sections = built.sections.map((s) => ({ heading: clean(s.heading), body: clean(s.body) }));
       page.faqs = built.faqs.map((f) => ({ question: clean(f.question), answer: clean(f.answer) }));
-      page.description = clampMeta(clean(built.description));
+      page.description = fitDescription(clean(built.description));
       page.figure = built.figure;
       page.noindex = false;
       return;
@@ -398,7 +356,7 @@ export function applyHumanPage(page: SeoPageConfig): void {
     query.length > 72
       ? "The quote shows the fee and the minimum you receive before you sign."
       : `${facts.name} quotes on ${BRAND_NAME}, with the fee and the minimum you receive shown before you sign.`;
-  page.description = clampMeta(`${query}. ${reason}`);
+  page.description = fitDescription(`${query}. ${reason}`);
   const short = query.length <= 52 ? query : `${query.slice(0, 49).replace(/\s+\S*$/, "")}`;
   page.title = `${short} | ${BRAND_NAME}`;
 }

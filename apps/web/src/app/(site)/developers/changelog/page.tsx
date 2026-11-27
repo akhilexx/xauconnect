@@ -1,4 +1,11 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
+
+export const metadata = sitePageMetadata({
+  title: "API changelog",
+  description: "Read changes to XAUConnect’s public swap API and developer tools.",
+  path: "/developers/changelog",
+});
 
 export default function ChangelogPage() {
   return (

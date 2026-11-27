@@ -1,56 +1,46 @@
-# XAUConnect SEO Pages — Operator Runbook
+# XAUConnect search and discovery runbook
 
-## Overview
+## Where the content comes from
 
-Curated statically generated marketing pages (quality over volume) powered by:
+The Next.js server renders the Learn library, network hubs, guides and route pages in the same SiteShell as the app. Articles, source links and network directories must be readable in the server HTML. A wallet connection is unnecessary for reading.
 
-- **Registry:** `packages/seo/registry/pages.json` (generated, gitignored, shipped in deploy tarball)
-- **Static sitemaps:** `apps/web/public/sitemap.xml` + `apps/web/public/sitemaps/*.xml`
-- **Prerendered HTML:** `apps/web/.next/server/app/**/*.html` (uploaded with each deploy)
-- **Codegen:** `pnpm seo:generate` (only when registry missing or `SEO_REFRESH=1`)
-- **Deploy:** `./scripts/deploy.sh` (fast) or `./scripts/deploy.sh --seo` (full prerender) → upload → CF purge on `--seo` only
+- Edit the researched articles in `packages/seo/src/editorial-library.ts`. Reuse an existing canonical URL when the reader's question is the same. Each entry contains the actual prose, section headings, FAQs, checked sources and a date of substantive change. A first publication date is optional; do not invent one for an existing page.
+- The generator merges these entries into the Learn catalog before generic enrichment. Authored paragraphs and sources are preserved; optional LLM enrichment skips the library. Article metadata, visible attribution and sitemap dates use the same data.
+- Other articles live in `packages/seo/src/learn-content*.ts`. Entity pages are built from the token catalog and route registry. The network hubs group available route pages by destination. These are routes for which a user may request a quote, not a live liquidity or fulfilment guarantee.
+- The generated registry under `packages/seo/registry/*.json` is ignored by Git and included in the release package. The XML index and seven child sitemaps in `apps/web/public` are generated and tracked. Use an official public HTTPS domain for production canonicals.
+- Developer pages and blog posts own their canonical, title and description. Do not put a landing-page canonical in a nested layout: Next will otherwise inherit it on child pages.
 
-Google’s 2024–2026 spam policies treat **scaled / doorway / keyword-stuffed pages** as site-wide risk. Do **not** regenerate tens of thousands of near-duplicate URLs. Grow the **hand-authored Learn/Guide library** (swap, multi-chain, token creation) and deepen **real entity pages** (tokens, pairs, cross-chain routes). Do **not** regenerate tens of thousands of near-duplicate URLs.
+## Generate and release
 
-## Page kinds (current pipeline)
+For an editorial change with an established token catalog:
 
-| Route | Kind | Role |
-|-------|------|------|
-| `/learn`, `/learn/guides` | hubs | Browseable library (CollectionPage) |
-| `/learn/[slug]` | `learn` | Hand-authored explainers |
-| `/learn/guides/[slug]` | `guide` | Hand-authored HowTo guides |
-| `/search/[slug]` | `search` | Curated AEO answers; **canonical to Learn** when they overlap |
-| `/cross-chain/...` | `cross-chain-swap` | Liquid major routes only |
-| `/swap/...`, `/pairs/...`, hubs | entity pages | Real tokens/chains |
-
-Retired doorway kinds (`buy`, `sell`, `token-deep`, `cross-chain-search`) 301 away in `next.config.mjs`.
-
-## Commands
-
-```bash
-pnpm seo:generate          # Force regenerate registry + sitemaps
-SEO_REFRESH=1 ./scripts/deploy.sh --seo   # required after Learn/content changes
-./scripts/deploy.sh          # fast deploy (app JS) — does not refresh SEO HTML
-./scripts/seo-publish.sh   # Cloudflare purge + IndexNow only
+```sh
+pnpm seo:articles
+pnpm seo:build:full
 ```
 
-After every Learn/content change you **must** use `--seo` (and `SEO_REFRESH=1` if seeds/registry changed). Fast deploys leave prerendered HTML and sitemap `lastmod` stale.
+On a fresh checkout without a token catalog, or to intentionally update the asset universe, use `pnpm seo:generate` first. The editorial command reuses the current catalog and its original market snapshot dates. Review changes to URL inventory before shipping a new catalog. The full build prerenders the registry; a fast app build is insufficient for an editorial release.
 
-## Google / AEO notes
+The existing production release command is `./scripts/deploy.sh --seo` after generation. It uploads the build and runs the repository's remote release procedure. Verify representative **public HTTPS URLs** and the sitemap after release before asking a search engine to crawl them. Use URL Inspection on changed canonical articles, a developer child and a route reached from a chain hub. Leave private pages private and intentionally removed URLs gone; redirect only when there is a relevant replacement.
 
-Ranking methods from the Edward Sturm / Whitespark episode, and where they are implemented, live in [SEO_RANKING_PLAYBOOK.md](./SEO_RANKING_PLAYBOOK.md).
+## Current editorial and technical decisions
 
-- AI Overviews cite **indexed, snippet-eligible** pages. Schema does not unlock them.
-- Do not stuff “Medium” / “Reddit” into titles or keywords (keyword stuffing + inauthentic mentions).
-- Submit only `https://xauconnect.com/sitemap.xml` in Search Console. Do not submit retired files (`tokens.xml`, `cross-chain-search.xml`, `buy.xml`, `sell.xml`). Those doorway URLs 301 to the live chain hub; the deploy deletes any leftover sitemap file.
-- Request indexing on `/`, `/launchpad`, `/learn`, and new guides after a full SEO deploy. The other sitemap URLs are discovered from that index plus the footer directory.
-- Private GitHub does not pass crawlable E-E-A-T. Prefer a public contracts/docs repo.
+1. **Start with demonstrated questions.** Read Search Console’s Pages and Queries together. A page with impressions and no clicks at position 70 has a visibility and intent problem; changing punctuation in the title is not a sufficient diagnosis. Separate native assets from wrappers, same-chain swaps from bridges, and estimates from settlement. Label worked numbers as examples.
+2. **Give evidence for consequential claims.** Match product behavior to the current wizard, public API and chain documentation. Explain how to check a receipt. Identify the publisher and sources; distinguish AI assistance from human review. A real change in fees, product behavior or guidance merits a date change. Regenerating a site does not.
+3. **Publish one useful answer per intent.** Keep coherent plain-text paragraphs, informative headings and ordinary internal links. There is no required word count or exact-match opening for Google AI. Avoid automatic questions, keyword variants and fabricated freshness. Unused classifications or a schema type do not qualify a URL for ranking.
+4. **Keep signals consistent.** Robots rules permit public pages to Googlebot and search assistants, including OAI-SearchBot under the wildcard group. API and admin paths retain crawl exclusions. Training agents have distinct controls: do not change training permissions as a search tactic. The index sitemap points to canonical, indexable URLs. Pages without a reliable modification date omit lastmod.
+5. **Choose the image that represents the page.** When a relevant editorial illustration exists, use it in the article, Open Graph and Article markup. Current editorial figures are 1280 × 720. Large previews are allowed on indexable registry pages. Eligibility for Discover does not guarantee distribution.
+6. **Measure each surface separately.** Compare Web clicks, impressions, CTR and position for edited URLs. Use Search Console’s **Generative AI features** report for Google AI impressions. Discover is a separate feed and has its own reporting threshold. For Bing/Copilot, use Bing Webmaster Tools’ AI Performance when available; for ChatGPT, use identifiable referral traffic as a partial measure. None of these counts imply coverage on the others.
 
-## Verification
+## Official guidance consulted on 27 November 2026
 
-```bash
-node -e "console.log(require('./packages/seo/registry/manifest.json').pageCount)"
-find apps/web/.next/server/app -name '*.html' | wc -l
-curl -s https://xauconnect.com/sitemap.xml | head
-curl -s -o /dev/null -w '%{http_code}\n' https://xauconnect.com/learn
-```
+- [Google Search documentation changelog](https://developers.google.com/search/updates): November 24 ranking, AI controls and attribution updates.
+- [Google: attribution and factuality](https://developers.google.com/search/docs/fundamentals/gen-ai-attribution-factuality) and [AI controls](https://developers.google.com/search/docs/fundamentals/gen-ai-controls): indexed, snippet-eligible pages and the property's generative AI inclusion setting matter. Clear claims and sourcing support accurate attribution.
+- [Google: optimizing for generative AI](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide), [people-first content](https://developers.google.com/search/docs/fundamentals/creating-helpful-content) and [spam policies](https://developers.google.com/search/docs/essentials/spam-policies): focus on useful, distinctive content. Adding schema, an AI text file or more URL permutations is not a substitute.
+- [Google: Discover](https://developers.google.com/search/docs/appearance/google-discover): descriptive titles and relevant large images; avoid generic logos, clickbait and exaggerated promises. An indexed page can qualify without a special tag.
+- [Google: sitemaps](https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap) and [canonical URLs](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls): list preferred URLs; use accurate lastmod when known; keep links, redirects, sitemap and canonical aligned.
+- [OpenAI crawler documentation](https://developers.openai.com/api/docs/bots) and [Bing AI Performance](https://blogs.bing.com/webmaster/2026/2/Introducing-AI-Performance-in-Bing-Webmaster-Tools-Public-Preview/): crawler access, referral traffic and reported citations are different things.
+
+## After shipping
+
+Record the release date and changed URLs. After the next crawl, compare user-declared and Google-selected canonicals using URL Inspection. At roughly 7 and 28 days check the edited cohort and compare equivalent windows, country, device and search type. Distinguish previously indexed URLs from the two new guides. Keep a separate record of intentionally retired pages; a falling total of 404s is not the goal. Expand a topic only when query or support evidence identifies a question the current page does not answer.

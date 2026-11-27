@@ -1,3 +1,4 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
@@ -16,10 +17,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const post = BLOG_BY_SLUG[slug];
   if (!post) return { title: "Blog" };
-  return {
-    title: post.title,
-    description: post.excerpt,
-  };
+  return sitePageMetadata({ title: post.title, description: post.excerpt, path: `/developers/blog/${post.slug}` });
 }
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {

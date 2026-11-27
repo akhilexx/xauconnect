@@ -1,5 +1,12 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import Link from "next/link";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
+
+export const metadata = sitePageMetadata({
+  title: "Agent quickstart",
+  description: "Execute a non-custodial same-chain swap in four API calls — no API key required.",
+  path: "/developers/quickstart",
+});
 
 export default function QuickstartPage() {
   return (

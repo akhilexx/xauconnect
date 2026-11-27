@@ -1,5 +1,6 @@
 import type { SeoPageConfig } from "./types.js";
 import { getChainByKey } from "@xauconnect/utils";
+import { editorialFor } from "./editorial-library.js";
 import { applyRichContent } from "./content-engine.js";
 import { applyHumanPage } from "./human-page.js";
 import { applyRankingSystem, type RankingStats } from "./ranking.js";
@@ -131,6 +132,18 @@ export function buildRelatedLinks(page: SeoPageConfig, ctx: EnrichContext): SeoR
 }
 
 export function enrichPage(page: SeoPageConfig, ctx: EnrichContext): void {
+  const article = (page.kind === "learn" || page.kind === "guide") && editorialFor(page.slug);
+  if (article) {
+    const { intro, sections, faqs, h1, description, eyebrow, figure, modified, published, sources } = article;
+    Object.assign(page, {
+      intro, sections, faqs, h1, title: h1 + " | XAUConnect", description, eyebrow, figure,
+      editorial: { modified, published, sources }, enriched: true,
+    });
+    // These articles link directly to relevant guides in their own copy.
+    page.relatedLinks = [];
+    page.relatedPaths = [];
+    return;
+  }
   applyRichContent(page);
   applyHumanPage(page);
   page.relatedLinks = buildRelatedLinks(page, ctx);

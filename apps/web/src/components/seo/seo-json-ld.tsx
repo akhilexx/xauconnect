@@ -2,7 +2,6 @@ import type { SeoPageConfig } from "@xauconnect/seo";
 import {
   articleJsonLd,
   breadcrumbJsonLd,
-  howToJsonLd,
   webPageJsonLd,
 } from "@/lib/seo/metadata";
 
@@ -14,7 +13,6 @@ export function SeoJsonLd({ page }: { page: SeoPageConfig }) {
   if (articleKinds.has(page.kind)) {
     blocks.push(breadcrumbJsonLd(page), articleJsonLd(page));
   }
-  if (page.kind === "guide") blocks.push(howToJsonLd(page));
   return (
     <>
       {blocks.map((block, i) => (

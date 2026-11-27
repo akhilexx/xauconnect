@@ -1,7 +1,14 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import Link from "next/link";
 import { GlassCard } from "@xauconnect/ui";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
 import { BLOG_POSTS, formatBlogDate } from "@/lib/developers/blog-posts";
+
+export const metadata = sitePageMetadata({
+  title: "Developer blog",
+  description: "Guides for AI agents, autonomous bots, and programmatic swap integrations.",
+  path: "/developers/blog",
+});
 
 export default function BlogIndexPage() {
   return (

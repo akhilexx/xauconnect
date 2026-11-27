@@ -35,6 +35,28 @@ const SCALE: Figure = {
 };
 
 const PAGES: Record<string, Block> = {
+  "/swap/arbitrum": {
+    intro: "Swap tokens on Arbitrum One using assets already on chain 42161 and native ETH for the network fee. ARB is a token on the network; holding ARB alone does not pay gas.",
+    description: "Compare swaps on Arbitrum One, identify native USDC versus USDC.e, check the ETH needed for execution and distinguish a local swap from a bridge.",
+    figure: ROUTE,
+    sections: [
+      { heading: "Identify the USDC contract before comparing routes", body: "Native USDC and the older bridged USDC.e have different contracts on Arbitrum One. Two quotes with different output contracts are not interchangeable, even when their dollar estimates look close. Check the token your recipient accepts. Read [native and bridged USDC](/learn/native-usdc-vs-bridged-usdc) before choosing an input by symbol alone." },
+      { heading: "Start with a balance on Arbitrum One", body: "ETH on Ethereum mainnet is not part of your Arbitrum One balance. If the funds are already on Arbitrum, a same-network swap does not need a bridge. If your intended output is on another chain, select it as the destination and inspect the new route. The [Arbitrum network directory](/chains/arbitrum) groups those routes by receiving network." },
+      { heading: "Compare the receipt with the original quote", body: "Keep ETH aside for a token approval and the swap if both are needed. Use the total Arbitrum fee from the wallet or receipt, which can include the cost of publishing data to Ethereum. Compare output after trading fees and account for separately paid gas once. A low execution price alone does not ensure the highest delivered amount." },
+    ],
+    faqs: [{ question: "Can ARB pay my ordinary Arbitrum One gas fee?", answer: "Arbitrum One uses native ETH for ordinary wallet-paid gas. ARB is a separate token. Verify the wallet is on chain 42161 before comparing its ETH balance with the estimate." }],
+  },
+  "/swap/bsc": {
+    intro: "Swap tokens on BNB Chain using BNB Smart Chain mainnet, chain ID 56. Native BNB pays the ordinary network fee; WBNB and tokens with dollar symbols use separate contracts.",
+    description: "Compare token swap routes on BNB Smart Chain. Verify the token contract, keep BNB for approval and execution, and check the result on the correct network.",
+    figure: KEY,
+    sections: [
+      { heading: "Decide whether both assets are on chain 56", body: "A swap from a stablecoin on BNB Smart Chain to native BNB can stay on one network. Starting with USDC on Solana and wanting BNB on chain 56 requires a cross-chain route. Switching a wallet network cannot move the funds. The [USDC to BNB walkthrough](/learn/guides/swap-usdc-to-bnb) gives the fee and receipt checks for both situations." },
+      { heading: "Read the approval and the swap separately", body: "A token approval allows a particular spender to use a particular contract token. It does not credit BNB. If the wallet asks twice, inspect both requests and their fees. Recheck the selected contract, allowance and output before signing the swap itself. Leave native BNB for execution even if that is what you are buying." },
+      { heading: "Check what arrived", body: "Look for the confirmed swap on BNB Smart Chain, then compare your token balance change with the minimum shown for that trade. When the output is native BNB, the same wallet may also have paid the network fee, reducing its net balance increase. A WBNB token credit is not native gas. See [gas fees across networks](/learn/gas-fees-explained-across-chains) for a worked fee calculation." },
+    ],
+    faqs: [{ question: "Is an Ethereum wallet address enough to identify a BNB Smart Chain transfer?", answer: "No. The address format is shared across EVM chains. Check chain ID 56, the token contract if relevant, and the transaction on that network." }],
+  },
   "/learn/what-is-a-dex-aggregator": {
     figure: ROUTE,
     description:

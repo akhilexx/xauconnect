@@ -1,6 +1,13 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import Link from "next/link";
 import { GlassCard } from "@xauconnect/ui";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
+
+export const metadata = sitePageMetadata({
+  title: "Build with XAUConnect",
+  description: "Launch a Gold Curve on Meteora, or quote and build unsigned swaps across seven chains. No API key. Your wallet signs every transaction.",
+  path: "/developers",
+});
 
 export default function DevelopersPage() {
   return (

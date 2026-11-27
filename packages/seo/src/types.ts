@@ -63,7 +63,7 @@ export const SeoPageConfigSchema = z.object({
   eyebrow: z.string().optional(),
   intro: z.string().min(1),
   sections: z.array(SeoSectionSchema).min(1),
-  faqs: z.array(SeoFaqSchema).min(1),
+  faqs: z.array(SeoFaqSchema),
   relatedPaths: z.array(z.string()).default([]),
   keywords: z.array(z.string()).default([]),
   tokenAddress: z.string().optional(),
@@ -78,13 +78,18 @@ export const SeoPageConfigSchema = z.object({
       toChainKey: z.string().optional(),
     })
     .optional(),
+  editorial: z.object({
+    modified: z.string().date(),
+    published: z.string().date().optional(),
+    sources: z.array(z.object({ label: z.string(), href: z.string() })),
+  }).optional(),
   canonicalPath: z.string().optional(),
   priority: z.number().optional(),
   noindex: z.boolean().optional(),
   enriched: z.boolean().optional(),
   /** Query this URL should win: title, slug, H1, and the opening sentence. */
   primaryQuery: z.string().optional(),
-  /** 20–30 word sentence copied from the opening, for AI retrieval checks. */
+  /** Visible opening paragraph, also used as the page abstract. */
   citationSnippet: z.string().optional(),
   /** Diagram that makes the point without the paragraph. */
   figure: z

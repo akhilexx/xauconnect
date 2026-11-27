@@ -1,4 +1,11 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
+
+export const metadata = sitePageMetadata({
+  title: "API tracking & admin visibility",
+  description: "Track the transaction hash and settlement state after submitting a signed swap.",
+  path: "/developers/api/tracking",
+});
 
 export default function ApiTrackingPage() {
   return (

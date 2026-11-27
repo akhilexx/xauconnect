@@ -1,4 +1,11 @@
+import { sitePageMetadata } from "@/lib/seo/site-metadata";
 import { DevDocsShell } from "@/components/developers/dev-docs-shell";
+
+export const metadata = sitePageMetadata({
+  title: "TypeScript SDK",
+  description: "Use the XAUConnect TypeScript SDK to request quotes and build unsigned swap transactions.",
+  path: "/developers/sdks",
+});
 
 export default function SdksPage() {
   return (

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">From curve reserve to locked liquidity</title>
+  <desc id="desc">A USDC reserve is four fifths full at 600 of 750. A separate migration leads to a locked DAMM v2 pool after the threshold is met.</desc>
+  <defs>
+    <linearGradient id="canvas" x2="1" y2="1"><stop stop-color="#fff9ec"/><stop offset="1" stop-color="#f7edf0"/></linearGradient>
+    <linearGradient id="metal" x2=".9" y2="1"><stop stop-color="#ffe49b"/><stop offset=".55" stop-color="#eaae38"/><stop offset="1" stop-color="#ae7116"/></linearGradient>
+    <linearGradient id="ring"><stop stop-color="#af7422"/><stop offset=".65" stop-color="#f6c462"/><stop offset="1" stop-color="#d49832"/></linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#canvas)"/>
+  <g fill="#29242b" font-family="Helvetica,Arial,sans-serif">
+    <text x="76" y="91" font-size="23" letter-spacing="3">XAUCONNECT   /   GOLD CURVE</text>
+    <text x="76" y="169" font-size="60" font-weight="700">From reserve to locked pool</text>
+  </g>
+  <g transform="translate(290 393) rotate(-90)" fill="none" stroke-width="33">
+    <circle r="121" stroke="#e8dcc7"/>
+    <circle r="121" stroke="url(#ring)" pathLength="100" stroke-dasharray="80 20"/>
+  </g>
+  <g fill="#29242b" font-family="Helvetica,Arial,sans-serif" text-anchor="middle">
+    <text x="291" y="396" font-size="54" font-weight="700">600</text><text x="291" y="436" font-size="24">of 750 USDC</text>
+  </g>
+  <g stroke="#87725e" stroke-width="5" fill="none" stroke-linecap="round"><path d="M483 394h312" stroke-dasharray="5 13"/><path d="m774 374 22 20-22 20"/></g>
+  <g transform="translate(988 394)">
+    <ellipse cy="71" rx="142" ry="46" fill="#e6d7c2"/>
+    <g fill="url(#metal)" stroke="#9e702c" stroke-width="3"><path d="M-124 18v35c0 54 248 54 248 0V18"/><ellipse cy="18" rx="124" ry="40"/><path d="M-124-21v35c0 54 248 54 248 0v-35"/><ellipse cy="-21" rx="124" ry="40"/></g>
+    <path d="M-32-37v-32a32 32 0 0 1 64 0v32" stroke="#403943" stroke-width="13" fill="none"/>
+    <rect x="-49" y="-44" width="98" height="76" rx="14" fill="#403943"/><circle cy="-15" r="8" fill="#ffe5a3"/><path d="M0-12v17" stroke="#ffe5a3" stroke-width="6"/>
+  </g>
+  <g fill="#29242b" font-family="Helvetica,Arial,sans-serif" text-anchor="middle" font-size="31" font-weight="600">
+    <text x="290" y="596">Curve reserve</text><text x="648" y="596">Migration</text><text x="985" y="596">DAMM v2 pool</text>
+  </g>
+  <text x="640" y="659" text-anchor="middle" fill="#635549" font-family="Helvetica,Arial,sans-serif" font-size="23">Illustrative USDC configuration · Migration follows the reserve threshold.</text>
+</svg>

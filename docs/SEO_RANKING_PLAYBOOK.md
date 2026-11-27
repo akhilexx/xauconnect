@@ -1,4 +1,6 @@
-# Ranking playbook — Whitespark Local Update E49
+# Historical notes — Whitespark Local Update E49
+
+Archived October 2026 implementation notes. For the current pipeline and primary-source recommendations, use [the search and discovery runbook](./SEO_PAGES.md). The pipeline no longer requires exact-match openings, fixed-length citations or generated FAQ variants.
 
 Source: [Edward Sturm's Ranking Trick, Hacking AI Overviews, Parasite SEO](https://www.youtube.com/watch?v=2iLtrRbRFJw) (Whitespark, 30 Sep 2026, Darren Shaw with Edward Sturm). Show notes and the articles they discuss are listed at the bottom.
 
